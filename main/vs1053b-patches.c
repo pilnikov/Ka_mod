@@ -624,7 +624,7 @@ const unsigned short patch[] = { /* Compressed plugin */
 	0x2a01,0x7f8e,
 	0x000a,0x0001, /*copy 1*/
 	0x0050,
-#define PATCH_SIZEPATCH_SIZE 4623
+#define PATCH_SIZE 4623
 };
 
 void LoadUserCode(const unsigned short *plugin, uint16_t size)
