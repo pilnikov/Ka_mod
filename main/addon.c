@@ -670,10 +670,10 @@ void adcBatLoop() {
 		}
 
 		const float R1 = 100000;
-		const float R2 = 100000;
-		const float Vs = adc_value / R2 * (R1 + R2);
+		const float R2 =  27000;
+		const float Vs = (adc_value / R2) * (R1 + R2);
 
-		const float FullVoltage = 4.1f;
+		const float FullVoltage = 4.2f;
 		const float EmptyVoltage = 3.2f;
 
 		out_state.millivolts = (int)(Vs * 1000);

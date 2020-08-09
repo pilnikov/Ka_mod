@@ -1249,12 +1249,14 @@ void sysledpol(char *s)
 		kprintf("##Led polarity is %d#\n", ((g_device->options & T_LEDPOL) == 0) ? 0 : 1);
 		return;
 	}
+	
 	char *t_end = strstr(t, parquoteslash);
 	if (t_end == NULL)
 	{
 		kprintf(stritCMDERROR);
 		return;
 	}
+	
 	uint8_t value = atoi(t + 2);
 	if (value != 0)
 	{

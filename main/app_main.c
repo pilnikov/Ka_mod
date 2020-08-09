@@ -173,6 +173,7 @@ IRAM_ATTR void sleepCallback(void *pArg)
 	xQueueSendFromISR(event_queue, &evt, NULL);
 	TIMERG0.hw_timer[timer_idx].config.alarm_en = 0;
 }
+
 IRAM_ATTR void wakeCallback(void *pArg)
 {
 	int timer_idx = (int)pArg;
@@ -723,7 +724,7 @@ void start_network()
 				g_device->mask1[3] = ip4_addr4_val(ipAddr);
 				break;
 
-			case STA2: //ssid1 used
+			case STA2: //ssid2 used
 				ip4_addr_copy(ipAddr, info.ip);
 				g_device->ipAddr2[0] = ip4_addr1_val(ipAddr);
 				g_device->ipAddr2[1] = ip4_addr2_val(ipAddr);
@@ -772,6 +773,8 @@ void timerTask(void *p)
 	gpioLed = getLedGpio();
 	gpio_get_ledgpio(&gpioLed);
 	setLedGpio(gpioLed);
+
+	ledPolarity =  ((g_device->options & T_LEDPOL) == 0) ? 0 : 1;
 
 	//printf("FIRST LED GPIO: %d, SSID:%d\n",gpioLed,g_device->current_ap);
 

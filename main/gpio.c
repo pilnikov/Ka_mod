@@ -1,5 +1,5 @@
 /******************************************************************************
- * 
+ *
  * Copyright 2017 karaw(http://www.karawin.fr)
  *
 *******************************************************************************/
@@ -14,10 +14,10 @@
 #include "eeprom.h"
 
 static xSemaphoreHandle muxnvs = NULL;
-const char hardware[] = {"hardware"};
-const char option_space[] = {"option_space"};
-const char gpio_space[] = {"gpio_space"};
-const char label_space[] = {"label_space"};
+const char hardware[] ={ "hardware" };
+const char option_space[] ={ "option_space" };
+const char gpio_space[] ={ "gpio_space" };
+const char label_space[] ={ "label_space" };
 
 // init a gpio as output
 void gpio_output_conf(gpio_num_t gpio)
@@ -56,6 +56,7 @@ esp_err_t open_partition(const char *partition_label, const char *namespace, nvs
 	}
 	return err;
 }
+
 void close_partition(nvs_handle handle, const char *partition_label)
 {
 	nvs_commit(handle); // if a write is pending
@@ -196,6 +197,42 @@ bool option_get_esplay()
 	return ret;
 }
 
+bool option_get_ledpola()
+{
+	esp_err_t err;
+	bool ret = false;
+	nvs_handle hardware_handle;
+
+	if (open_partition(hardware, option_space, NVS_READONLY, &hardware_handle) != ESP_OK)
+	{
+		ESP_LOGD(TAG, "get_ledpola");
+		return ret;
+	}
+	err = nvs_get_u8(hardware_handle, "O_LEDPOLA", (uint8_t *)&ret);
+	if (err != ESP_OK)
+		ESP_LOGD(TAG, "get_ledpola err 0x%x", err);
+	close_partition(hardware_handle, hardware);
+	return ret;
+}
+
+void option_set_ledpola(bool enca)
+{
+	esp_err_t err;
+	nvs_handle hardware_handle;
+
+	if (open_partition(hardware, option_space, NVS_READWRITE, &hardware_handle) != ESP_OK)
+	{
+		ESP_LOGD(TAG, "set_ledpola");
+		return;
+	}
+
+	err = nvs_set_u8(hardware_handle, "O_LEDPOLA", enca ? 1 : 0);
+	if (err != ESP_OK)
+		ESP_LOGD(TAG, "oset_ledpola err 0x%x", err);
+
+	close_partition(hardware_handle, hardware);
+}
+
 void option_get_lcd_info(uint8_t *dtyp, uint8_t *drot)
 {
 	esp_err_t err;
@@ -271,6 +308,7 @@ void option_get_ddmm(uint8_t *enca)
 
 	close_partition(hardware_handle, hardware);
 }
+
 void option_set_ddmm(uint8_t enca)
 {
 	esp_err_t err;
@@ -306,6 +344,7 @@ void option_set_lcd_out(uint32_t enca)
 
 	close_partition(hardware_handle, hardware);
 }
+
 void option_set_lcd_stop(uint32_t enca)
 {
 	esp_err_t err;
@@ -323,6 +362,7 @@ void option_set_lcd_stop(uint32_t enca)
 
 	close_partition(hardware_handle, hardware);
 }
+
 void option_set_lcd_blv(int blv)
 {
 	esp_err_t err;
@@ -385,6 +425,7 @@ void option_get_lcd_out(uint32_t *enca, uint32_t *encb)
 	}
 	close_partition(hardware_handle, hardware);
 }
+
 void option_get_lcd_blv(int *blv)
 {
 	esp_err_t err;
@@ -454,6 +495,7 @@ void gpio_set_ledgpio(gpio_num_t enca)
 
 	close_partition(hardware_handle, hardware);
 }
+
 void gpio_get_joysticks(gpio_num_t *enca, gpio_num_t *enca1)
 {
 	esp_err_t err;
@@ -637,7 +679,7 @@ void gpio_get_ir_signal(gpio_num_t *ir)
 	close_partition(hardware_handle, hardware);
 }
 
-void gpio_get_adc(adc1_channel_t  *channel, adc1_channel_t *chanbatt)
+void gpio_get_adc(adc1_channel_t *channel, adc1_channel_t *chanbatt)
 {
 	esp_err_t err;
 	nvs_handle hardware_handle;
@@ -646,22 +688,26 @@ void gpio_get_adc(adc1_channel_t  *channel, adc1_channel_t *chanbatt)
 	*channel = gpioToChannel(*channel);
 	// battery gpio
 	*chanbatt = GPIO_NONE;
-	
-	if (open_partition(hardware, gpio_space,NVS_READONLY,&hardware_handle)!= ESP_OK)
+
+	if (open_partition(hardware, gpio_space, NVS_READONLY, &hardware_handle) != ESP_OK)
 	{
-		ESP_LOGD(TAG,"adc");
+		ESP_LOGD(TAG, "adc");
 		return;
-	}	
-	
-	err = nvs_get_u8(hardware_handle, "P_ADC_KBD",(uint8_t *) channel);
-	if (err != ESP_OK)ESP_LOGW(TAG,"g_get_adc err 0x%x",err);
-	else *channel = gpioToChannel(*channel);
+	}
 
-	err = nvs_get_u8(hardware_handle, "P_ADC_BAT",(uint8_t *) chanbatt);
-	if (err != ESP_OK)ESP_LOGW(TAG,"g_get_adc err 0x%x",err);
-	else *chanbatt = gpioToChannel(*chanbatt);
+	err = nvs_get_u8(hardware_handle, "P_ADC_KBD", (uint8_t *)channel);
+	if (err != ESP_OK)
+		ESP_LOGW(TAG, "g_get_adc err 0x%x", err);
+	else
+		*channel = gpioToChannel(*channel);
 
-	close_partition(hardware_handle,hardware);		
+	err = nvs_get_u8(hardware_handle, "P_ADC_BAT", (uint8_t *)chanbatt);
+	if (err != ESP_OK)
+		ESP_LOGW(TAG, "g_get_adc err 0x%x", err);
+	else
+		*chanbatt = gpioToChannel(*chanbatt);
+
+	close_partition(hardware_handle, hardware);
 }
 
 void gpio_get_i2s(gpio_num_t *lrck, gpio_num_t *bclk, gpio_num_t *i2sdata)
@@ -730,12 +776,9 @@ void gpio_get_touch(gpio_num_t *cs)
 
 uint8_t gpioToChannel(uint8_t gpio)
 {
-	if (gpio == GPIO_NONE)
-		return GPIO_NONE;
-	if (gpio >= 38)
-		return (gpio - 36);
-	else
-		return (gpio - 28);
+	if (gpio == GPIO_NONE) return GPIO_NONE;
+	if (gpio >= 38) return (gpio-36);
+	else return (gpio-28);
 }
 
 bool gpio_get_ir_key(nvs_handle handle, const char *key, uint32_t *out_value1, uint32_t *out_value2)
