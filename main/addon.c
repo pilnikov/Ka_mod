@@ -679,7 +679,7 @@ void adcBatLoop() {
 		out_state.millivolts = (int)(Vs * 1000);
 		out_state.percentage = (int)((Vs - EmptyVoltage) / (FullVoltage - EmptyVoltage) * 100.0f);
 		ESP_LOGD(TAG,"ADC Batt: %d%%, millivolt: %d, Sample: %f, Value: %f ", out_state.percentage, out_state.millivolts ,adcSample, adc_value );
-		kprintf("ADC Batt: %d%%, millivolt: %d, Sample: %f, Value: %f \n", out_state.percentage, out_state.millivolts ,adcSample, adc_value );
+		//kprintf("ADC Batt: %d%%, millivolt: %d, Sample: %f, Value: %f \n", out_state.percentage, out_state.millivolts ,adcSample, adc_value );
 
 	//    if (out_state.percentage > 100)
 	//        out_state.percentage = 100;

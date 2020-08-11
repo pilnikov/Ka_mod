@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\components",
+    "\\components\\audio_player",
+    "\\components\\audio_renderer",
+    "\\main"
+  ],
+  "SelectedNode": "\\components\\audio_renderer\\audio_renderer.c",
+  "PreviewInSolutionExplorer": false
+}

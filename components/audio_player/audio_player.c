@@ -105,7 +105,8 @@ static int start_decoder_task(player_t* player)
 		spiRamFifoReset();
 		return -1;
 	}
-	else {
+	else 
+	{
 		player->decoder_status = RUNNING;
 	}
 
@@ -136,9 +137,9 @@ int audio_stream_consumer(const char* recv_buf, ssize_t bytes_read,
 	int bytes_in_buf = spiRamFifoFill();
 	uint8_t fill_level = (bytes_in_buf * 100) / spiRamFifoLen();
 
-//  seems 4k is enough to prevent initial buffer underflow
-//	uint8_t min_fill_lvl = player->buffer_pref == BUF_PREF_FAST ? 40 : 90;
-//	bool buffer_ok = fill_level > min_fill_lvl;
+	//  seems 4k is enough to prevent initial buffer underflow
+	//	uint8_t min_fill_lvl = player->buffer_pref == BUF_PREF_FAST ? 40 : 90;
+	//	bool buffer_ok = fill_level > min_fill_lvl;
 
 	if (player->decoder_status != RUNNING)
 	{
