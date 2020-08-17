@@ -38,6 +38,33 @@
 #define MAIN_INCLUDE_APP_MAIN_H_
 #include "audio_renderer.h"
 #include "driver/timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/event_groups.h"
+#include "freertos/queue.h"
+#include "esp_system.h"
+#include "esp_wifi.h"
+#include "esp_event.h"
+#include "esp_log.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <nvs.h>
+
+#include "esp_ota_ops.h"
+//#include "esp_heap_trace.h"
+#include "nvs_flash.h"
+#include "driver/i2s.h"
+#include "driver/uart.h"
+
+#include "lwip/sys.h"
+#include "lwip/netdb.h"
+#include "lwip/api.h"
+#include "lwip/tcp.h"
+#include "lwip/dns.h"
+#include "mdns.h"
+
 
 #define TIMER_DIVIDER 16 	//5000000Hz 5MHz
 #define TIMER_DIVIDER1MS TIMER_BASE_CLK/10000 //10000Hz 
@@ -139,6 +166,8 @@ void interrupt1Ms();
 //void noInterrupts();
 //void interrupts();
 char* getIp();
+esp_netif_t *ap;
+esp_netif_t *sta;
 
 
 #endif /* MAIN_INCLUDE_APP_MAIN_H_ */

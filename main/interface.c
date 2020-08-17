@@ -404,12 +404,17 @@ void wifiDisconnect()
 
 void wifiStatus()
 {
-	tcpip_adapter_ip_info_t ipi;
-	tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_STA, &ipi);
+    esp_netif_ip_info_t ipi;
+   
+    esp_netif_get_ip_info(sta, &ipi);
+	
+	
 	kprintf(stritWIFISTATUS,
 			(ipi.ip.addr & 0xff), ((ipi.ip.addr >> 8) & 0xff), ((ipi.ip.addr >> 16) & 0xff), ((ipi.ip.addr >> 24) & 0xff),
 			(ipi.netmask.addr & 0xff), ((ipi.netmask.addr >> 8) & 0xff), ((ipi.netmask.addr >> 16) & 0xff), ((ipi.netmask.addr >> 24) & 0xff),
 			(ipi.gw.addr & 0xff), ((ipi.gw.addr >> 8) & 0xff), ((ipi.gw.addr >> 16) & 0xff), ((ipi.gw.addr >> 24) & 0xff));
+
+
 }
 
 void wifiGetStation()

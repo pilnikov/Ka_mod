@@ -15,35 +15,9 @@ Copyright (C) 2017  KaraWin
 */
 
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <nvs.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
-#include "freertos/queue.h"
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_log.h"
-#include "esp_ota_ops.h"
-//#include "esp_heap_trace.h"
-#include "nvs_flash.h"
-#include "driver/i2s.h"
-#include "driver/uart.h"
-
-#include "lwip/sys.h"
-#include "lwip/netdb.h"
-#include "lwip/api.h"
-#include "lwip/tcp.h"
-#include "lwip/dns.h"
-#include "mdns.h"
-
 #include "app_main.h"
-
+#include "ClickButtons.h"
+#include "addonu8g2.h"
 #include "spiram_fifo.h"
 #include "audio_renderer.h"
 
@@ -51,8 +25,6 @@ Copyright (C) 2017  KaraWin
 #include <u8g2.h>
 #include "u8g2_esp32_hal.h"
 #include "addon.h"
-#include "addonu8g2.h"
-#include "ClickButtons.h"
 
 #include "eeprom.h"
 
@@ -108,9 +80,6 @@ static bool bigRam = false;
 static uint32_t ctimeVol = 0;
 static uint32_t ctimeMs = 0;
 static bool divide = false;
-
-esp_netif_t *ap;
-esp_netif_t *sta;
 
 // disable 1MS timer interrupt
 IRAM_ATTR void noInterrupt1Ms() { timer_disable_intr(TIMERGROUP1MS, msTimer); }

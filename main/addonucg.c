@@ -924,12 +924,42 @@ void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 
 		if (strcmp(TTimeStr, strtime) != 0)
 		{
+			
 			setDigiSize(large);
-			ucg_SetColor(&ucg, 0, CBODY);
+
 			ucg_SetFontMode(&ucg, UCG_FONT_MODE_SOLID);
 
-			ucg_DrawString(&ucg, (x / 2) - (ucg_GetStrWidth(&ucg, strtime) / 2), yy / 3, 0, strtime); //print time
+			ucg_SetColor(&ucg, 0, 0, 0, 0);
 
+			if (TTimeStr[0] != strtime[0])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "00:0"), yy / 3, 0, TTimeStr[0]); 
+			}	
+			if (TTimeStr[1] != strtime[1])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "0:0"), yy / 3, 0, TTimeStr[1]); 
+			}	
+			if (TTimeStr[3] != strtime[3])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "0"), yy / 3, 0, TTimeStr[3]); 
+			}	
+			if (TTimeStr[4] != strtime[4])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2), yy / 3, 0, TTimeStr[4]); 
+			}	
+			if (TTimeStr[6] != strtime[6])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2) + ucg_GetStrWidth(&ucg, "0:"), yy / 3, 0, TTimeStr[6]); 
+			}	
+			if (TTimeStr[7] != strtime[7])
+			{
+				ucg_DrawGlyph(&ucg, (x / 2) + ucg_GetStrWidth(&ucg, "0:0"), yy / 3, 0, TTimeStr[7]); 
+			}	
+		
+			ucg_SetColor(&ucg, 0, CBODY);
+			ucg_DrawString(&ucg, (x / 2) - (ucg_GetStrWidth(&ucg, strtime) / 2), yy / 3, 0, strtime); //print time
+			
+		
 			strcpy(TTimeStr, strtime);
 			ucg_SetFontMode(&ucg, UCG_FONT_MODE_TRANSPARENT);
 		}
