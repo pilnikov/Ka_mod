@@ -14,7 +14,11 @@ Inspirated by:
 
 typedef  uint32_t u32;
 
-#include "crypto/sha1_i.h"
+//#include "crypto/sha1_i.h"
+
+#include "mbedtls/base64.h"
+#include "mbedtls/sha1.h"
+char* ws_hash_handshake(char* key,uint8_t len);
 
 #define NBCLIENT 5
 #define MAXDATA	 528

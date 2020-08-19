@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.ipp": "c",
+        "*.tcc": "c",
+        "limits": "c"
+    }
+}

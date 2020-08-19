@@ -118,13 +118,13 @@
 #define PRIO_VS1053 	9
 #define PRIO_RMT		5
 #define PRIO_UART		2
-#define PRIO_CLIENT		7
-#define PRIO_SERVER		4
+#define PRIO_CLIENT		8
+#define PRIO_SERVER		6
 #define PRIO_ADDON		7
-#define PRIO_LCD		8
-#define PRIO_SUBSERV	5
+#define PRIO_LCD		7
+#define PRIO_SUBSERV	6
 #define PRIO_TIMER		10
-#define PRIO_OTA		8
+#define PRIO_OTA		3
 
 // CPU for task
 #define CPU_MAD			1  // internal decoder and vs1053

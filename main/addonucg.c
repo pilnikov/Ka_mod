@@ -53,7 +53,9 @@
 static uint16_t HHeader = 40;
 
 static char TTitleStr[15];
-static char TTimeStr[15];
+static char TTimeStr[8];
+static uint8_t mTscreen_buf;
+
 
 typedef enum Lang
 {
@@ -282,6 +284,8 @@ void setfont(sizefont size)
 void setDigiSize(sizefont size)
 {
 	int inX = x;
+	int inY = 0;
+
 	if (yy <= 80)
 		inX = 96; // corrected for small yy
 
@@ -314,7 +318,8 @@ void setDigiSize(sizefont size)
 			ucg_SetFont(&ucg, ucg_font_osb21_tf);
 			break;
 		case 128:
-			ucg_SetFont(&ucg, ucg_font_osb18_tf);
+			ucg_SetFont(&ucg, ucg_font_5x7_mf);
+			inY = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg);
 			break;
 		case 132:
 			ucg_SetFont(&ucg, ucg_font_osb18_tf);
@@ -323,7 +328,8 @@ void setDigiSize(sizefont size)
 			ucg_SetFont(&ucg, ucg_font_5x7_mf);
 			break;
 		default: // 160
-			ucg_SetFont(&ucg, ucg_font_osb18_tf);
+			ucg_SetFont(&ucg, ucg_font_5x7_mf);
+			inY = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg);
 			break;
 		}
 		break;
@@ -372,10 +378,21 @@ void setDigiSize(sizefont size)
 		ESP_LOGE(TAG, "Default for size %d\n", size);
 	}
 
-	if (yy <= 80)
-		y = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg) + 2; //interline
+
+	if (inY != 0)
+	{
+		if (yy <= 80)
+			y = inY + 2;
+		else
+			y = inY + 3;
+	}
 	else
-		y = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg) + 3; //interline
+	{
+		if (yy <= 80)
+			y = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg) + 2; //interline
+		else
+			y = -ucg_GetFontDescent(&ucg) + ucg_GetFontAscent(&ucg) + 3; //interline
+	}
 }
 
 ////////////////////////////////////////
@@ -666,9 +683,9 @@ void draw(int i)
 			setDigiSize(small);
 			char strsec[30];
 			if (getDdmm())
-				sprintf(strsec, "%02d-%02d  %02d:%02d:%02d", dt->tm_mday, dt->tm_mon + 1, dt->tm_hour, dt->tm_min, dt->tm_sec);
+				sprintf(strsec, "%2d-%02d  %2d:%02d:%02d", dt->tm_mday, dt->tm_mon + 1, dt->tm_hour, dt->tm_min, dt->tm_sec);
 			else
-				sprintf(strsec, "%02d-%02d  %02d:%02d:%02d", dt->tm_mon + 1, dt->tm_mday, dt->tm_hour, dt->tm_min, dt->tm_sec);
+				sprintf(strsec, "%2d-%02d  %2d:%02d:%02d", dt->tm_mon + 1, dt->tm_mday, dt->tm_hour, dt->tm_min, dt->tm_sec);
 			len = ucg_GetStrWidth(&ucg, strsec);
 			ucg_SetColori(&ucg, 250, 250, 255);
 			ucg_SetColor(&ucg, 1, CBLACK);
@@ -705,8 +722,7 @@ void drawLinesUcg()
 	for (int i = 0; i < LINES; i++)
 	{
 		//		taskYIELD();
-		if (mline[i])
-			draw(i);
+		if (mline[i]) draw(i);
 	}
 }
 
@@ -896,76 +912,79 @@ static void drawInfo(unsigned timein)
 void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 {
 	char strdate[36];
-	char strtime[10];
+	char strtime[8];
 	LANG scharset;
-	sprintf(strtime, "%02d:%02d:%02d", dt->tm_hour, dt->tm_min, dt->tm_sec);
+	sprintf(strtime, "%2d%02d%02d", dt->tm_hour, dt->tm_min, dt->tm_sec);
 	switch (mTscreen)
 	{
 	case 1:
-		scharset = charset;
-		charset = Latin;
-		setDigiSize(text);
-		sprintf(strdate, "IP: %s", getIp());
-		ucg_ClearScreen(&ucg);
-		ucg_SetColor(&ucg, 0, CRED);
-		TTitleStr[0] = 0;
-		TTimeStr[0] = 0;
-		ucg_DrawString(&ucg, 4, yy - (2 * y), 0, strdate); //print IP address
-		charset = scharset;
+		if (mTscreen_buf != mTscreen)
+		{
+			scharset = charset;
+			charset = Latin;
+			ucg_ClearScreen(&ucg);
+			setDigiSize(text);
+			sprintf(strdate, "IP: %s", getIp());
+			ucg_SetColor(&ucg, 0, CRED);
+			ucg_DrawString(&ucg, 4, yy - (3 * y), 0, strdate); //print IP address
+			charset = scharset;
+		}
 		/* fall through */
 	case 2:
-		setDigiSize(text);
-		if (getDdmm())
-			sprintf(strdate, "%02d-%02d-%04d", dt->tm_mday, dt->tm_mon + 1, dt->tm_year + 1900);
-		else
-			sprintf(strdate, "%02d-%02d-%04d", dt->tm_mon + 1, dt->tm_mday, dt->tm_year + 1900);
-
-		drawTTitleUcg(strdate); //print date
-
-		if (strcmp(TTimeStr, strtime) != 0)
+		if (mTscreen_buf != mTscreen)
 		{
-			
+			setDigiSize(text);
+			if (getDdmm())
+				sprintf(strdate, "%2d-%02d-%4d", dt->tm_mday, dt->tm_mon + 1, dt->tm_year + 1900);
+			else
+				sprintf(strdate, "%2d-%02d-%4d", dt->tm_mon + 1, dt->tm_mday, dt->tm_year + 1900);
+
+			drawTTitleUcg(strdate); //print date
+		}
+		if (strcmp(TTimeStr, strtime) != 0) //print time
+		{
 			setDigiSize(large);
 
 			ucg_SetFontMode(&ucg, UCG_FONT_MODE_SOLID);
 
-			ucg_SetColor(&ucg, 0, 0, 0, 0);
+			uint8_t sym_w = 0;
+			int8_t pos_offset [6] = {-4,-3,-1,0,2,3};
 
-			if (TTimeStr[0] != strtime[0])
+			sym_w = ucg_GetGlyphWidth(&ucg, '0'); 
+
+			if (mTscreen_buf != mTscreen) 
 			{
-				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "00:0"), yy / 3, 0, TTimeStr[0]); 
-			}	
-			if (TTimeStr[1] != strtime[1])
+				ucg_SetColor(&ucg, 0, CBODY);
+				ucg_DrawGlyph(&ucg, (x / 2) - 1.7 * sym_w, yy / 3 - 7, 0, ':'); 
+				ucg_DrawGlyph(&ucg, (x / 2) + 1.3 * sym_w, yy / 3 - 7, 0, ':'); 
+				for (int i = 0; i < 6; i++)
+				{
+					if (!(i == 0 && strtime[0] == '0'))
+						ucg_DrawGlyph(&ucg, (x / 2) + pos_offset [i] * sym_w, yy / 3, 0, strtime[i]); 
+					
+				}	
+			}
+
+			for (int i = 0; i < 6; i++)
 			{
-				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "0:0"), yy / 3, 0, TTimeStr[1]); 
+				if (TTimeStr[i] != strtime[i])
+				{
+					ucg_SetColor(&ucg, 0, 0, 0, 0);
+					ucg_DrawGlyph(&ucg, (x / 2) + pos_offset [i] * sym_w, yy / 3, 0, TTimeStr[i]); 
+					ucg_SetColor(&ucg, 0, CBODY);
+					if (!(i == 0 && strtime[0] == '0'))
+						ucg_DrawGlyph(&ucg, (x / 2) + pos_offset [i] * sym_w, yy / 3, 0, strtime[i]); 
+				}	
 			}	
-			if (TTimeStr[3] != strtime[3])
-			{
-				ucg_DrawGlyph(&ucg, (x / 2) - ucg_GetStrWidth(&ucg, "0"), yy / 3, 0, TTimeStr[3]); 
-			}	
-			if (TTimeStr[4] != strtime[4])
-			{
-				ucg_DrawGlyph(&ucg, (x / 2), yy / 3, 0, TTimeStr[4]); 
-			}	
-			if (TTimeStr[6] != strtime[6])
-			{
-				ucg_DrawGlyph(&ucg, (x / 2) + ucg_GetStrWidth(&ucg, "0:"), yy / 3, 0, TTimeStr[6]); 
-			}	
-			if (TTimeStr[7] != strtime[7])
-			{
-				ucg_DrawGlyph(&ucg, (x / 2) + ucg_GetStrWidth(&ucg, "0:0"), yy / 3, 0, TTimeStr[7]); 
-			}	
-		
-			ucg_SetColor(&ucg, 0, CBODY);
-			ucg_DrawString(&ucg, (x / 2) - (ucg_GetStrWidth(&ucg, strtime) / 2), yy / 3, 0, strtime); //print time
-			
 		
 			strcpy(TTimeStr, strtime);
 			ucg_SetFontMode(&ucg, UCG_FONT_MODE_TRANSPARENT);
 		}
 		break;
-	default:;
+	default:
+	;
 	}
+	mTscreen_buf = mTscreen;
 	drawInfo(timein);
 }
 

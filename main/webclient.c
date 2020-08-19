@@ -29,7 +29,6 @@ enum clientStatus cstatus;
 //static uint16_t metasize = 0;
 
 extern bool ledStatus, ledPolarity;
-;
 
 xSemaphoreHandle sConnect, sConnected, sDisconnect, sHeader;
 
@@ -831,7 +830,7 @@ void clientDisconnect(const char *from)
 	if ((from[0] != 'C') || (from[1] != '_'))
 		if (!ledStatus)
 			if (getLedGpio() != GPIO_NONE)
-				gpio_set_level(getLedGpio(), ledPolarity ? 1 : 0);
+				gpio_set_level(getLedGpio(), false ^ ledPolarity);
 	esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 	vTaskDelay(5);
 	// save the volume if needed on stop state
@@ -1213,7 +1212,7 @@ void clientReceiveCallback(int sockfd, char *pdata, int len)
 			kprintf(CLIPLAY, 0x0d, 0x0a);
 			if (!ledStatus)
 				if (getLedGpio() != GPIO_NONE)
-					gpio_set_level(getLedGpio(), ledPolarity ? 0 : 1);
+					gpio_set_level(getLedGpio(), true ^ ledPolarity);
 		}
 	}
 }

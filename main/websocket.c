@@ -28,34 +28,30 @@ client_t webserverclients[NBCLIENT];
 //set of socket descriptors
 fd_set readfds;
 
-void base64_encode_local(uint8_t *data, size_t length, char *output)
+char *ws_hash_handshake(char *handshake, uint8_t len)
 {
-	//    size_t size = ((length * 1.6f) + 1);
-	if (output)
+	const char hash[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	const uint8_t hash_len = sizeof(hash);
+	char *ret;
+	char key[64];
+	unsigned char sha1sum[20];
+	unsigned int ret_len;
+
+	if (!len)
+		return NULL;
+	ret = malloc(32);
+
+	memcpy(key, handshake, len);
+	strlcpy(&key[len], hash, sizeof(key));
+	mbedtls_sha1((unsigned char *)key, len + hash_len - 1, sha1sum);
+	mbedtls_base64_encode(NULL, 0, &ret_len, sha1sum, 20);
+	if (!mbedtls_base64_encode((unsigned char *)ret, 32, &ret_len, sha1sum, 20))
 	{
-		base64_encodestate _state;
-		base64_init_encodestate(&_state);
-		int len = base64_encode_block((const char *)data, length, output, &_state);
-		len = base64_encode_blockend((output + len), &_state);
+		ret[ret_len] = '\0';
+		return ret;
 	}
-}
-
-/**
- * generate the key for Sec-WebSocket-Accept
- * @param clientKey char*
- * @param Output char*
- */
-void websocketacceptKey(char *clientKey, char *Output)
-{
-	uint8_t sha1HashBin[20] = {0};
-	strcat(clientKey, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-
-	struct SHA1Context ctx;
-
-	SHA1Init(&ctx);
-	SHA1Update(&ctx, clientKey, strlen(clientKey));
-	SHA1Final(&sha1HashBin[0], &ctx);
-	base64_encode_local(sha1HashBin, 20, Output);
+	free(ret);
+	return NULL;
 }
 
 void wsclientDisconnect(int socket, uint16_t code, char *reason, size_t reasonLen)
@@ -96,7 +92,7 @@ uint32_t decodeHttpMessage(char *inputMessage, char *outputMessage)
 	// remove	uint32_t i;
 	char key[24 + 36 + 1]; //24 bytes
 	uint32_t outputLength;
-	char encodedSha1[41];
+	char *encodedSha1;
 	uint32_t encodedLength;
 	// Split the message into substrings to identify it
 	tokens[0] = strtok(inputMessage, s);
@@ -117,7 +113,7 @@ uint32_t decodeHttpMessage(char *inputMessage, char *outputMessage)
 		}
 	}
 	//compute the accept key
-	websocketacceptKey(key, encodedSha1);
+	encodedSha1 = ws_hash_handshake(key, strlen(key));
 	//Fill Output Buffer
 	encodedLength = strlen(encodedSha1);
 	outputLength = encodedLength + strlen(str1) + 2 * strlen(s);

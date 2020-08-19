@@ -34,6 +34,8 @@
 
 #include "esp_wifi.h"
 
+static bool ledpola_buf;
+
 const char parslashquote[] = {"(\""};
 const char parquoteslash[] = {"\")"};
 const char msgsys[] = {"##SYS."};
@@ -1214,7 +1216,7 @@ uint32_t getLcdStop()
 void sysled(char *s)
 {
 	char *t = strstr(s, parslashquote);
-	extern bool ledStatus, ledPolarity;
+	extern bool ledStatus;
 	if (t == NULL)
 	{
 		kprintf("##Led is in %s mode#\n", ((g_device->options & T_LED) == 0) ? "Blink" : "Play");
@@ -1231,8 +1233,6 @@ void sysled(char *s)
 	{
 		g_device->options |= T_LED;
 		ledStatus = false;
-		if (getLedGpio() != GPIO_NONE)
-			gpio_set_level(getLedGpio(), ledPolarity ? 0 : 1);
 	}
 	else
 	{
@@ -1252,6 +1252,11 @@ void sysledpol(char *s)
 	if (t == NULL)
 	{
 		kprintf("##Led polarity is %d#\n", ((g_device->options & T_LEDPOL) == 0) ? 0 : 1);
+		if (ledPolarity != ledpola_buf)
+		{
+			gpio_set_level(getLedGpio(), !(gpio_get_level(getLedGpio())));
+			ledpola_buf = ledPolarity;
+		} 
 		return;
 	}
 	
@@ -1267,8 +1272,6 @@ void sysledpol(char *s)
 	{
 		g_device->options |= T_LEDPOL;
 		ledPolarity = true;
-		if (getLedGpio() != GPIO_NONE)
-			gpio_set_level(getLedGpio(), ledPolarity ? 0 : 1);
 	}
 	else
 	{

@@ -68,7 +68,7 @@ xQueueHandle event_queue;
 //xSemaphoreHandle print_mux;
 static uint16_t FlashOn = 5, FlashOff = 5;
 bool ledStatus = true;	// true: normal blink, false: led on when playing
-bool ledPolarity = true; // true: normal false: reverse
+bool ledPolarity = false; // false: normal true: reverse
 player_t *player_config;
 static output_mode_t audio_output_mode;
 static uint8_t clientIvol = 0;
@@ -739,19 +739,19 @@ void timerTask(void *p)
 	initTimers();
 	isEsplay = option_get_esplay();
 
+	// led mode
+	ledStatus = !(g_device->options & T_LED);
+	ledPolarity = g_device->options & T_LEDPOL;
 	gpioLed = getLedGpio();
 	gpio_get_ledgpio(&gpioLed);
 	setLedGpio(gpioLed);
-
-	ledPolarity =  ((g_device->options & T_LEDPOL) == 0) ? 0 : 1;
-
-	//printf("FIRST LED GPIO: %d, SSID:%d\n",gpioLed,g_device->current_ap);
-
 	if (gpioLed != GPIO_NONE)
 	{
 		gpio_output_conf(gpioLed);
-		gpio_set_level(gpioLed, ledPolarity ? 1 : 0);
+		gpio_set_level(getLedGpio(), false ^ ledPolarity);
+
 	}
+
 	cCur = FlashOff * 10;
 	queue_event_t evt;
 
@@ -782,18 +782,16 @@ void timerTask(void *p)
 
 				if (stateLed)
 				{
-					if (getLedGpio() != GPIO_NONE)
-						gpio_set_level(getLedGpio(), ledPolarity ? 1 : 0);
 					stateLed = false;
 					cCur = FlashOff * 10;
 				}
 				else
 				{
-					if (getLedGpio() != GPIO_NONE)
-						gpio_set_level(getLedGpio(), ledPolarity ? 0 : 1);
 					stateLed = true;
 					cCur = FlashOn * 10;
 				}
+				if (getLedGpio() != GPIO_NONE)
+					gpio_set_level(getLedGpio(), ledPolarity ^ stateLed);
 				ctimeMs = 0;
 			}
 		}
@@ -958,12 +956,6 @@ void app_main()
 
 	copyDeviceSettings(); // copy in the safe partion
 	
-	// led mode
-	if (g_device->options & T_LED)
-		ledStatus = false;
-	if (g_device->options & T_LEDPOL)
-		ledPolarity = true;
-
 	// init softwares
 	telnetinit();
 	websocketinit();
