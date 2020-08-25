@@ -21,7 +21,7 @@ void drawNumberUcg(uint8_t mTscreen,char* irStr);
 void drawStationUcg(uint8_t mTscreen,char* snum,char* ddot);
 //void drawVolumeUcg(uint8_t mTscreen,char* aVolume);
 void drawVolumeUcg(uint8_t mTscreen);
-void drawTimeUcg(uint8_t mTscreen,unsigned timein);
+void drawTimeUcg(uint8_t mTscreen,unsigned timein, uint8_t stateScreen);
 void lcd_initUcg(uint8_t* lcd_type);
 void setVolumeUcg(uint16_t vol);
 void drawLinesUcg();

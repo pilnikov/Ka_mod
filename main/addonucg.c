@@ -56,7 +56,6 @@ static char TTitleStr[15];
 static char TTimeStr[8];
 static uint8_t mTscreen_buf;
 
-
 typedef enum Lang
 {
 	Latin,
@@ -909,7 +908,7 @@ static void drawInfo(unsigned timein)
 	}
 }
 
-void drawTimeUcg(uint8_t mTscreen, unsigned timein)
+void drawTimeUcg(uint8_t mTscreen, unsigned timein, uint8_t stateScreen)
 {
 	char strdate[36];
 	char strtime[8];
@@ -918,20 +917,17 @@ void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 	switch (mTscreen)
 	{
 	case 1:
-		if (mTscreen_buf != mTscreen)
-		{
-			scharset = charset;
-			charset = Latin;
-			ucg_ClearScreen(&ucg);
-			setDigiSize(text);
-			sprintf(strdate, "IP: %s", getIp());
-			ucg_SetColor(&ucg, 0, CRED);
-			ucg_DrawString(&ucg, 4, yy - (3 * y), 0, strdate); //print IP address
-			charset = scharset;
-		}
+		scharset = charset;
+		charset = Latin;
+		ucg_ClearScreen(&ucg);
+		setDigiSize(text);
+		sprintf(strdate, "IP: %s", getIp());
+		ucg_SetColor(&ucg, 0, CRED);
+		ucg_DrawString(&ucg, 4, yy - (3 * y), 0, strdate); //print IP address
+		charset = scharset;
 		/* fall through */
 	case 2:
-		if (mTscreen_buf != mTscreen)
+		if (mTscreen_buf != stateScreen + mTscreen)
 		{
 			setDigiSize(text);
 			if (getDdmm())
@@ -952,7 +948,7 @@ void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 
 			sym_w = ucg_GetGlyphWidth(&ucg, '0'); 
 
-			if (mTscreen_buf != mTscreen) 
+			if (mTscreen_buf != stateScreen + mTscreen) 
 			{
 				ucg_SetColor(&ucg, 0, CBODY);
 				ucg_DrawGlyph(&ucg, (x / 2) - 1.7 * sym_w, yy / 3 - 7, 0, ':'); 
@@ -961,7 +957,6 @@ void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 				{
 					if (!(i == 0 && strtime[0] == '0'))
 						ucg_DrawGlyph(&ucg, (x / 2) + pos_offset [i] * sym_w, yy / 3, 0, strtime[i]); 
-					
 				}	
 			}
 
@@ -984,7 +979,7 @@ void drawTimeUcg(uint8_t mTscreen, unsigned timein)
 	default:
 	;
 	}
-	mTscreen_buf = mTscreen;
+	mTscreen_buf = stateScreen + mTscreen;
 	drawInfo(timein);
 }
 

@@ -478,7 +478,7 @@ void drawTime()
 	dt = localtime(&timestamp);
 	if (lcd_type == LCD_NONE)
 		return;
-	isColor ? drawTimeUcg(mTscreen, timein) : drawTimeU8g2(mTscreen, timein);
+	isColor ? drawTimeUcg(mTscreen, timein, stateScreen) : drawTimeU8g2(mTscreen, timein);
 }
 
 ////////////////////
@@ -486,7 +486,7 @@ void drawTime()
 void drawScreen()
 {
 	//  if (lcd_type == LCD_NONE) return;
-	//  ESP_LOGD(TAG,"stateScreen: %d,defaultStateScreen: %d, mTscreen: %d, itLcdOut: %d",stateScreen,defaultStateScreen,mTscreen,itLcdOut);
+	// kprintf("stateScreen: %d,defaultStateScreen: %d, mTscreen: %d, itLcdOut: %d\\n",stateScreen,defaultStateScreen,mTscreen,itLcdOut);
 	if ((mTscreen != MTNODISPLAY) && (!itLcdOut))
 	{
 		switch (stateScreen)
@@ -509,6 +509,7 @@ void drawScreen()
 		default:
 			Screen(defaultStateScreen);
 			//	  drawFrame();
+			//    drawTime();
 		}
 		//	if (mTscreen == MTREFRESH)
 		mTscreen = MTNODISPLAY;
