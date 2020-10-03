@@ -1,8 +1,8 @@
 key,type,encoding,value
 
 label_space,namespace,,
-L_LABEL,data,string,radiva836.csv
-L_COMMENT,data,string,xcs:15 xdcs:5 rst:12 dreq:4 a/d:14 cs:13 d_rst:27 ir:36 e0_a:25 e0_b:21 e0_s:22 e1_a:34 e1_b:35 e1_s:33 lcd:199 led:26 bl:32 bat39
+L_LABEL,data,string,radiva830.csv
+L_COMMENT,data,string,xcs:15 xdcs:2 rst:12 dreq:4 a/d:14 cs:13 d_rst:32 ir:36 e0_a:35 e0_b:34 e0_s:33 e1_a:21 e1_b:5 e1_s:25 lcd:203 led:22 bl:27 t_cs:26
 
 gpio_space,namespace,,
 K_SPI,data,u8,2
@@ -11,9 +11,9 @@ P_MOSI,data,u8,23
 P_CLK,data,u8,18
 P_XCS,data,u8,15
 P_RST,data,u8,12
-P_XDCS,data,u8,5
+P_XDCS,data,u8,2
 P_DREQ,data,u8,4
-P_ENC0_A,data,u8,25
+P_ENC0_A,data,u8,5
 P_ENC0_B,data,u8,21
 P_ENC0_BTN,data,u8,22
 P_ENC1_A,data,u8,34
@@ -49,7 +49,7 @@ O_LCD_ROTA,data,u8,0
 O_LCD_OUT,data,u32,10
 O_LCD_STOP,data,u32,10
 O_LCD_BLV,data,i32,10
-O_DDMM_FLAG,data,u8,1
+O_DDMM_FLAG,data,u8,255
 O_AUDIO,data,u8,4
 O_ESPLAY,data,u8,0
 O_BAT_R1,data,u8,100
