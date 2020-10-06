@@ -6,8 +6,8 @@ L_COMMENT,data,string, a/d:16 cs:5 d_rst:23 lcd:199 bl:4
 
 gpio_space,namespace,,
 K_SPI,data,u8,2
-P_MISO,data,u8,19
-P_MOSI,data,u8,32
+P_MISO,data,u8,32
+P_MOSI,data,u8,19
 P_CLK,data,u8,18
 P_XCS,data,u8,255
 P_RST,data,u8,255
