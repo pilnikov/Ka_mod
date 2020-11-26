@@ -160,12 +160,10 @@ void spiRamFifoWrite(const char *buff, unsigned buffLen) {
 
 //Get amount of bytes in use
 unsigned spiRamFifoFill() {
-//	unsigned ret;
 	xSemaphoreTake(mux, portMAX_DELAY);
-	unsigned ret=fifoFill;
+	unsigned ret = fifoFill;
 	xSemaphoreGive(mux);
 	return ret;
-
 }
 
 unsigned spiRamFifoFree() {

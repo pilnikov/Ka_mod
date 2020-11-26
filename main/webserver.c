@@ -179,8 +179,9 @@ static void serveFile(char *name, int conn)
 
 static bool getSParameter(char *result, uint32_t len, const char *sep, const char *param, char *data, uint16_t data_length)
 {
+	bool ret = false;
 	if ((data == NULL) || (param == NULL))
-		return false;
+		return ret;
 	char *p = strstr(data, param);
 	if (p != NULL)
 	{
@@ -191,7 +192,7 @@ static bool getSParameter(char *result, uint32_t len, const char *sep, const cha
 		if (p_end != NULL)
 		{
 			if (p_end == p)
-				return false;
+				return ret;
 			int i;
 			if (len > (p_end - p))
 				len = p_end - p;
@@ -200,13 +201,14 @@ static bool getSParameter(char *result, uint32_t len, const char *sep, const cha
 			strncpy(result, p, len);
 			result[len] = 0;
 			ESP_LOGV(TAG, "getSParam: in: \"%s\"   \"%s\"", data, result);
-			return true;
+			ret = true;
+			return ret;
 		}
 		else
-			return false;
+			return ret;
 	}
 	else
-		return false;
+		return ret;
 }
 
 static char *getParameter(const char *sep, const char *param, char *data, uint16_t data_length)
@@ -435,10 +437,10 @@ void playStationInt(int sid)
 
 		clientConnect();
 		setOffsetVolume();
-		for (int i = 0; i < 100; i++)
+		int i = 0;
+		while (i < 100 && !clientIsConnected())
 		{
-			if (clientIsConnected())
-				break;
+			i++;
 			vTaskDelay(5);
 		}
 	}
@@ -569,7 +571,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 	}
 	else if (strcmp(name, "/sound") == 0)
 	{
-		if (data_size > 0)
+		if (get_audio_output_mode() == VS1053 && data_size > 0)
 		{
 			char bass[6];
 			char treble[6];
@@ -577,64 +579,50 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			char treblefreq[6];
 			char spacial[6];
 			changed = false;
+
 			if (getSParameterFromResponse(bass, 6, "bass=", data, data_size))
 			{
 				if (g_device->bass != atoi(bass))
 				{
-					if (get_audio_output_mode() == VS1053)
-					{
-						VS1053_SetBass(atoi(bass));
-						changed = true;
-						g_device->bass = atoi(bass);
-					}
+					VS1053_SetBass(atoi(bass));
+					changed = true;
+					g_device->bass = atoi(bass);
 				}
 			}
 			if (getSParameterFromResponse(treble, 6, "treble=", data, data_size))
 			{
 				if (g_device->treble != atoi(treble))
 				{
-					if (get_audio_output_mode() == VS1053)
-					{
-						VS1053_SetTreble(atoi(treble));
-						changed = true;
-						g_device->treble = atoi(treble);
-					}
+					VS1053_SetTreble(atoi(treble));
+					changed = true;
+					g_device->treble = atoi(treble);
 				}
 			}
 			if (getSParameterFromResponse(bassfreq, 6, "bassfreq=", data, data_size))
 			{
 				if (g_device->freqbass != atoi(bassfreq))
 				{
-					if (get_audio_output_mode() == VS1053)
-					{
-						VS1053_SetBassFreq(atoi(bassfreq));
-						changed = true;
-						g_device->freqbass = atoi(bassfreq);
-					}
+					VS1053_SetBassFreq(atoi(bassfreq));
+					changed = true;
+					g_device->freqbass = atoi(bassfreq);
 				}
 			}
 			if (getSParameterFromResponse(treblefreq, 6, "treblefreq=", data, data_size))
 			{
 				if (g_device->freqtreble != atoi(treblefreq))
 				{
-					if (get_audio_output_mode() == VS1053)
-					{
-						VS1053_SetTrebleFreq(atoi(treblefreq));
-						changed = true;
-						g_device->freqtreble = atoi(treblefreq);
-					}
+					VS1053_SetTrebleFreq(atoi(treblefreq));
+					changed = true;
+					g_device->freqtreble = atoi(treblefreq);
 				}
 			}
 			if (getSParameterFromResponse(spacial, 6, "spacial=", data, data_size))
 			{
 				if (g_device->spacial != atoi(spacial))
 				{
-					if (get_audio_output_mode() == VS1053)
-					{
-						VS1053_SetSpatial(atoi(spacial));
-						changed = true;
-						g_device->spacial = atoi(spacial);
-					}
+					VS1053_SetSpatial(atoi(spacial));
+					changed = true;
+					g_device->spacial = atoi(spacial);
 				}
 			}
 			if (changed)

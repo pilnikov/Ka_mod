@@ -748,22 +748,20 @@ void vsTask(void *pvParams)
 
 	player_t *player = pvParams;
 
-	while (1)
+	while (player->decoder_command != CMD_STOP)
 	{
 		// stop requested, terminate immediately
-		if (player->decoder_command == CMD_STOP)
-		{
-			break;
-		}
+		
 		//size = bufferRead(b, VSTASKBUF);
-		unsigned fsize = spiRamFifoFill();
-		size = min(VSTASKBUF, fsize);
 		/*		if (size > 	VSTASKBUF)
 		{
 			ESP_LOGE(TAG, "Decoder vs1053 size: %d, fsize: %d, VSTASKBUF: %d .\n",size,fsize,VSTASKBUF );	
 			size = 	VSTASKBUF;
 		}
-*/
+		*/
+
+		size = min(VSTASKBUF, spiRamFifoFill());
+
 		if (size > 0)
 		{
 			spiRamFifoRead((char *)b, size);

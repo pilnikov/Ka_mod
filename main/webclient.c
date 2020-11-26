@@ -765,6 +765,7 @@ void clientConnect()
 		vTaskDelay(1);
 	}
 }
+
 void clientConnectOnce()
 {
 	cstatus = C_HEADER;
@@ -779,6 +780,7 @@ void clientConnectOnce()
 	}
 	once = 1; // play one time
 }
+
 void clientSilentConnect()
 {
 	cstatus = C_HEADER;
@@ -793,6 +795,7 @@ void clientSilentConnect()
 		clientSilentDisconnect();
 	}
 }
+
 void clientSilentDisconnect()
 {
 	xSemaphoreGive(sDisconnect);
