@@ -21,7 +21,7 @@
 #include "spiram_fifo.h"
 #include "app_main.h"
 
-extern player_t *player_config;
+extern player_t* player_config;
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 
 enum clientStatus cstatus;
@@ -35,14 +35,14 @@ xSemaphoreHandle sConnect, sConnected, sDisconnect, sHeader;
 static uint8_t once = 0;
 static uint8_t playing = 0;
 
-static const char *icyHeaders[] = {"icy-name:", "icy-notice1:", "icy-notice2:", "icy-url:", "icy-genre:", "icy-br:", "icy-description:", "ice-audio-info:", "icy-metaint:"};
+static const char* icyHeaders[] = { "icy-name:", "icy-notice1:", "icy-notice2:", "icy-url:", "icy-genre:", "icy-br:", "icy-description:", "ice-audio-info:", "icy-metaint:" };
 contentType_t contentType;
 
-static char notfound[] = {"Not Found"};
-static char nodata[] = {"No Data"};
-static char parEmpty[] = {" "};
-const char CLIPLAY[] = {"##CLI.PLAYING#%c%c"};
-const char CLISTOP[] = {"##CLI.STOPPED# from %s\n"};
+static char notfound[] = { "Not Found" };
+static char nodata[] = { "No Data" };
+static char parEmpty[] = { " " };
+const char CLIPLAY[] = { "##CLI.PLAYING#%c%c" };
+const char CLISTOP[] = { "##CLI.STOPPED# from %s\n" };
 
 #define strcMALLOC "Client: incmalloc fails for %d"
 #define strcMALLOC1 "%s malloc fails"
@@ -52,18 +52,18 @@ const char CLISTOP[] = {"##CLI.STOPPED# from %s\n"};
 	- IP SETTINGS
 	- VS1053 - DELAY USING vTaskDelay
 */
-static struct icyHeader header = {{{NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL}}};
+static struct icyHeader header = { {{NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, NULL}} };
 
 static char metaint[10];
-static char clientURL[256] = {0, 0};
-static char clientPath[256] = {0, 0};
+static char clientURL[256] = { 0, 0 };
+static char clientPath[256] = { 0, 0 };
 static uint16_t clientPort = 80;
 
-static struct hostent *server = NULL;
+static struct hostent* server = NULL;
 
-void *incmalloc(size_t n)
+void* incmalloc(size_t n)
 {
-	void *ret;
+	void* ret;
 	//printf ("Client malloc of %d %d,  Heap size: %d\n",n,((n / 32) + 1) * 32,xPortGetFreeHeapSize( ));
 	ret = malloc(n);
 	if (ret == NULL)
@@ -72,7 +72,7 @@ void *incmalloc(size_t n)
 	ESP_LOGV(TAG, "Client malloc after of %d bytes ret:%x  Heap size: %d", n, (int)ret, xPortGetFreeHeapSize());
 	return ret;
 }
-void incfree(void *p, const char *from)
+void incfree(void* p, const char* from)
 {
 	if (p != NULL)
 		free(p);
@@ -115,30 +115,30 @@ uint8_t clientIsConnected()
 
 // for debug only
 
-void dump(uint8_t *from, uint32_t len)
+void dump(uint8_t* from, uint32_t len)
 {
 	uint32_t i;
-	uint8_t *addr;
+	uint8_t* addr;
 	addr = from;
 	for (i = 0; i < len; i += 16)
 	{
 		printf("\n%x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x    \t\
 		%c %c %c %c %c %c %c %c %c %c %c %c %c %c %c %c",
-			   (unsigned int)addr, (unsigned int)addr[0], (unsigned int)addr[1], (unsigned int)addr[2], (unsigned int)addr[3], (unsigned int)addr[4], (unsigned int)addr[5], (unsigned int)addr[6], (unsigned int)addr[7], (unsigned int)addr[8], (unsigned int)addr[9], (unsigned int)addr[10], (unsigned int)addr[11], (unsigned int)addr[12], (unsigned int)addr[13], (unsigned int)addr[14], (unsigned int)addr[15], addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7], addr[8], addr[9], addr[10], addr[11], addr[12], addr[13], addr[14], addr[15]);
+			(unsigned int)addr, (unsigned int)addr[0], (unsigned int)addr[1], (unsigned int)addr[2], (unsigned int)addr[3], (unsigned int)addr[4], (unsigned int)addr[5], (unsigned int)addr[6], (unsigned int)addr[7], (unsigned int)addr[8], (unsigned int)addr[9], (unsigned int)addr[10], (unsigned int)addr[11], (unsigned int)addr[12], (unsigned int)addr[13], (unsigned int)addr[14], (unsigned int)addr[15], addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7], addr[8], addr[9], addr[10], addr[11], addr[12], addr[13], addr[14], addr[15]);
 		addr += 16;
 	}
 	printf("\n");
 }
 
-struct icyHeader *clientGetHeader()
+struct icyHeader* clientGetHeader()
 {
 	return &header;
 }
 
-bool clientParsePlaylist(char *s)
+bool clientParsePlaylist(char* s)
 {
-	char *str;
-	char *ns;
+	char* str;
+	char* ns;
 	char path[255] = "/";
 	char url[78] = "";
 	char port[6] = "80";
@@ -249,13 +249,13 @@ bool clientParsePlaylist(char *s)
 
 //---------------------------------------
 // add escape char to the string
-static char *stringify(char *str, int len)
+static char* stringify(char* str, int len)
 {
 #define MORE 20
 	//		if ((strchr(str,'"') == NULL)&&(strchr(str,'/') == NULL)) return str;
 	if (len == 0)
 		return str;
-	char *new = incmalloc(len + MORE);
+	char* new = incmalloc(len + MORE);
 	int nlen = len + MORE;
 	if (new != NULL)
 	{
@@ -317,17 +317,17 @@ bool clientPrintMeta()
 	return true;
 }
 
-char *getMeta()
+char* getMeta()
 {
 	return (header.members.mArr[METADATA] == NULL) ? parEmpty : header.members.mArr[METADATA];
 }
 
-static void removePartOfString(char *origine, const char *remove)
+static void removePartOfString(char* origine, const char* remove)
 {
 	if (strlen(origine) == 0)
 		return;
-	char *copy = incmalloc(strlen(origine));
-	char *t_end;
+	char* copy = incmalloc(strlen(origine));
+	char* t_end;
 	if (copy != NULL)
 	{
 		while ((t_end = strstr(origine, remove)) != NULL)
@@ -342,10 +342,10 @@ static void removePartOfString(char *origine, const char *remove)
 }
 
 // A metadata found. Extract the Stream title
-static void clientSaveMetadata(char *s, int len)
+static void clientSaveMetadata(char* s, int len)
 {
-	char *t_end = NULL;
-	char *t;
+	char* t_end = NULL;
+	char* t;
 	bool found = false;
 	if ((len == 0) || (s == NULL))
 		ESP_LOGV(TAG, "clientSaveMetadata:  len:%d", len);
@@ -424,7 +424,7 @@ static void clientSaveMetadata(char *s, int len)
 	ESP_LOGV(TAG, "clientSaveMetadata0:  len:%d   char:%s", strlen(t), t);
 
 	// see if meta is != of the old one
-	char *tt;
+	char* tt;
 	tt = incmalloc((len + 3) * sizeof(char));
 	if (tt != NULL)
 	{
@@ -437,7 +437,7 @@ static void clientSaveMetadata(char *s, int len)
 		incfree(tt, "");
 		if (header.members.mArr[METADATA] != NULL)
 			incfree(header.members.mArr[METADATA], "metad"); //clear the old one
-		header.members.mArr[METADATA] = (char *)incmalloc((len + 3) * sizeof(char));
+		header.members.mArr[METADATA] = (char*)incmalloc((len + 3) * sizeof(char));
 		if (header.members.mArr[METADATA] == NULL)
 		{
 			ESP_LOGV(TAG, strcMALLOC1, "metad");
@@ -449,8 +449,8 @@ static void clientSaveMetadata(char *s, int len)
 		header.members.mArr[METADATA] = stringify(header.members.mArr[METADATA], len);
 		clientPrintMeta();
 		while ((header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] == ' ') ||
-			   (header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] == '\r') ||
-			   (header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] == '\n'))
+			(header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] == '\r') ||
+			(header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] == '\n'))
 		{
 			header.members.mArr[METADATA][strlen(header.members.mArr[METADATA]) - 1] = 0; // avoid blank at end
 		}
@@ -459,9 +459,9 @@ static void clientSaveMetadata(char *s, int len)
 		if (strlen(header.members.mArr[METADATA]) != 0)
 			t_end = header.members.mArr[METADATA];
 		else
-			t_end = (header.members.single.name == NULL) ? (char *)"" : header.members.single.name;
+			t_end = (header.members.single.name == NULL) ? (char*)"" : header.members.single.name;
 		//
-		char *title = incmalloc(strlen(t_end) + 15);
+		char* title = incmalloc(strlen(t_end) + 15);
 		if (title != NULL) // broadcast to all websockets
 		{
 			sprintf(title, "{\"meta\":\"%s\"}", t_end);
@@ -476,7 +476,7 @@ static void clientSaveMetadata(char *s, int len)
 // websocket: next station
 void wsStationNext()
 {
-	struct shoutcast_info *si = NULL;
+	struct shoutcast_info* si = NULL;
 	do
 	{
 		if (si != NULL)
@@ -493,7 +493,7 @@ void wsStationNext()
 // websocket: previous station
 void wsStationPrev()
 {
-	struct shoutcast_info *si = NULL;
+	struct shoutcast_info* si = NULL;
 	do
 	{
 		if (si != NULL)
@@ -512,7 +512,7 @@ void wsStationPrev()
 }
 
 // websocket: broadcast volume to all client
-void wsVol(char *vol)
+void wsVol(char* vol)
 {
 	char answer[21];
 	if (vol != NULL)
@@ -540,7 +540,7 @@ static void wsHeaders()
 	//remove	uint8_t header_num;
 	char currentSt[6];
 	sprintf(currentSt, "%d", getCurrentStation());
-	char *not2;
+	char* not2;
 	not2 = header.members.single.notice2;
 	if (not2 == NULL)
 		not2 = header.members.single.audioinfo;
@@ -548,31 +548,31 @@ static void wsHeaders()
 		not2 = header.members.single.audioinfo;
 	int json_length;
 	json_length = 104 + //93
-				  strlen(currentSt) +
-				  ((header.members.single.description == NULL) ? 0 : strlen(header.members.single.description)) +
-				  ((header.members.single.name == NULL) ? 0 : strlen(header.members.single.name)) +
-				  ((header.members.single.bitrate == NULL) ? 0 : strlen(header.members.single.bitrate)) +
-				  ((header.members.single.url == NULL) ? 0 : strlen(header.members.single.url)) +
-				  ((header.members.single.notice1 == NULL) ? 0 : strlen(header.members.single.notice1)) +
-				  ((not2 == NULL) ? 0 : strlen(not2)) +
-				  ((header.members.single.genre == NULL) ? 0 : strlen(header.members.single.genre)) +
-				  ((header.members.single.metadata == NULL) ? 0 : strlen(header.members.single.metadata));
-	char *wsh = incmalloc(json_length + 1);
+		strlen(currentSt) +
+		((header.members.single.description == NULL) ? 0 : strlen(header.members.single.description)) +
+		((header.members.single.name == NULL) ? 0 : strlen(header.members.single.name)) +
+		((header.members.single.bitrate == NULL) ? 0 : strlen(header.members.single.bitrate)) +
+		((header.members.single.url == NULL) ? 0 : strlen(header.members.single.url)) +
+		((header.members.single.notice1 == NULL) ? 0 : strlen(header.members.single.notice1)) +
+		((not2 == NULL) ? 0 : strlen(not2)) +
+		((header.members.single.genre == NULL) ? 0 : strlen(header.members.single.genre)) +
+		((header.members.single.metadata == NULL) ? 0 : strlen(header.members.single.metadata));
+	char* wsh = incmalloc(json_length + 1);
 	if (wsh == NULL)
 	{
 		ESP_LOGV(TAG, strcMALLOC1, "wsHeader");
 		return;
 	}
 	sprintf(wsh, "{\"wsicy\":{\"curst\":\"%s\",\"descr\":\"%s\",\"meta\":\"%s\",\"name\":\"%s\",\"bitr\":\"%s\",\"url1\":\"%s\",\"not1\":\"%s\",\"not2\":\"%s\",\"genre\":\"%s\"}}",
-			currentSt,
-			(header.members.single.description == NULL) ? "" : header.members.single.description,
-			(header.members.single.metadata == NULL) ? "" : header.members.single.metadata,
-			(header.members.single.name == NULL) ? "" : header.members.single.name,
-			(header.members.single.bitrate == NULL) ? "" : header.members.single.bitrate,
-			(header.members.single.url == NULL) ? "" : header.members.single.url,
-			(header.members.single.notice1 == NULL) ? "" : header.members.single.notice1,
-			(not2 == NULL) ? "" : not2,
-			(header.members.single.genre == NULL) ? "" : header.members.single.genre);
+		currentSt,
+		(header.members.single.description == NULL) ? "" : header.members.single.description,
+		(header.members.single.metadata == NULL) ? "" : header.members.single.metadata,
+		(header.members.single.name == NULL) ? "" : header.members.single.name,
+		(header.members.single.bitrate == NULL) ? "" : header.members.single.bitrate,
+		(header.members.single.url == NULL) ? "" : header.members.single.url,
+		(header.members.single.notice1 == NULL) ? "" : header.members.single.notice1,
+		(not2 == NULL) ? "" : not2,
+		(header.members.single.genre == NULL) ? "" : header.members.single.genre);
 	ESP_LOGV(TAG, "WSH: len:%d  \"%s\"", strlen(wsh), wsh);
 	websocketbroadcast(wsh, strlen(wsh));
 	incfree(wsh, "wsh");
@@ -619,9 +619,9 @@ bool clientPrintHeaders()
 	return true;
 }
 
-bool clientSaveOneHeader(const char *t, uint16_t len, uint8_t header_num)
+bool clientSaveOneHeader(const char* t, uint16_t len, uint8_t header_num)
 {
-	char *tt;
+	char* tt;
 	if (header.members.mArr[header_num] != NULL)
 		incfree(header.members.mArr[header_num], "headernum");
 	tt = incmalloc((len + 1) * sizeof(char));
@@ -642,11 +642,11 @@ bool clientSaveOneHeader(const char *t, uint16_t len, uint8_t header_num)
 	return true;
 }
 
-bool clientParseHeader(char *s)
+bool clientParseHeader(char* s)
 {
 	// icy-notice1 icy-notice2 icy-name icy-genre icy-url icy-br
 	uint8_t header_num;
-	char *t;
+	char* t;
 	bool ret = false;
 	ESP_LOGV(TAG, "ParseHeader: %s", s);
 	xSemaphoreTake(sHeader, portMAX_DELAY);
@@ -687,7 +687,7 @@ bool clientParseHeader(char *s)
 		if (t != NULL)
 		{
 			t += strlen(icyHeaders[header_num]);
-			char *t_end = strstr(t, "\r\n");
+			char* t_end = strstr(t, "\r\n");
 			if (t_end != NULL)
 			{
 				ESP_LOGV(TAG, "icy in: %d", header_num);
@@ -719,12 +719,12 @@ bool clientParseHeader(char *s)
 	return ret;
 }
 
-void clientSetName(const char *name, uint16_t index)
+void clientSetName(const char* name, uint16_t index)
 {
 	kprintf("##CLI.NAMESET#: %d %s\n", index, name);
 }
 
-void clientSetURL(char *url)
+void clientSetURL(char* url)
 {
 	//remove	int l = strlen(url)+1;
 	if (url[0] == 0xff)
@@ -733,7 +733,7 @@ void clientSetURL(char *url)
 	kprintf("##CLI.URLSET#: %s\n", clientURL);
 }
 
-void clientSetPath(char *path)
+void clientSetPath(char* path)
 {
 	//remove	int l = strlen(path)+1;
 	if (path[0] == 0xff)
@@ -752,7 +752,7 @@ void clientConnect()
 {
 	cstatus = C_HEADER;
 	once = 0;
-	if ((server = (struct hostent *)gethostbyname(clientURL)))
+	if ((server = (struct hostent*)gethostbyname(clientURL)))
 	{
 		xSemaphoreGive(sConnect);
 		esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
@@ -769,7 +769,7 @@ void clientConnect()
 void clientConnectOnce()
 {
 	cstatus = C_HEADER;
-	if ((server = (struct hostent *)gethostbyname(clientURL)))
+	if ((server = (struct hostent*)gethostbyname(clientURL)))
 	{
 		xSemaphoreGive(sConnect);
 		esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
@@ -799,10 +799,10 @@ void clientSilentConnect()
 void clientSilentDisconnect()
 {
 	xSemaphoreGive(sDisconnect);
-	
+
 	ESP_LOGW(TAG, "Client silent Disconnect!!!! Stopping player");
 
-	if (get_player_status()!=STOPPED)
+	if (get_player_status() != STOPPED)
 		audio_player_stop();
 
 	for (int i = 0; i < 100; i++)
@@ -814,7 +814,7 @@ void clientSilentDisconnect()
 	esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 }
 
-void clientDisconnect(const char *from)
+void clientDisconnect(const char* from)
 {
 	kprintf(CLISTOP, from);
 	xSemaphoreGive(sDisconnect);
@@ -844,21 +844,21 @@ void clientDisconnect(const char *from)
 	}
 }
 
-void clientReceiveCallback(int sockfd, char *pdata, int len)
+void clientReceiveCallback(int sockfd, char* pdata, int len)
 {
 	static int metad;
 	static int rest;
 	static IRAM_ATTR uint32_t chunked;
 	static IRAM_ATTR uint32_t cchunk;
-	static char *metadata = NULL;
+	static char* metadata = NULL;
 	uint16_t l = 0;
 	uint32_t lc;
-	char *inpdata;
-	char *inpchr;
+	char* inpdata;
+	char* inpchr;
 	uint32_t clen;
 	int bread;
-	char *t1;
-	char *t2;
+	char* t1;
+	char* t2;
 	bool icyfound;
 
 	//	if (cstatus != C_DATA) {printf("cstatus= %d\n",cstatus);  printf("Len=%d, Byte_list = %s\n",len,pdata);}
@@ -1159,7 +1159,7 @@ void clientReceiveCallback(int sockfd, char *pdata, int len)
 					//					if (spiRamFifoFree() < metad) ESP_LOGV(TAG,"metaout wait metad: %d, bufferfree: %d",metad,spiRamFifoFree());
 					while (spiRamFifoFree() < metad) // wait some room
 						vTaskDelay(20);
-					audio_stream_consumer((char *)inpdata, metad, (void *)player_config);
+					audio_stream_consumer((char*)inpdata, metad, (void*)player_config); //write stream data in bufer 
 				}
 				metad = header.members.single.metaint;
 				inpdata = inpdata + clen - rest;
@@ -1181,7 +1181,7 @@ void clientReceiveCallback(int sockfd, char *pdata, int len)
 					//					if (spiRamFifoFree() < rest) ESP_LOGV(TAG,"metaout wait rest: %d, bufferfree: %d",rest,spiRamFifoFree());
 					while (spiRamFifoFree() < rest) // wait some room
 						vTaskDelay(20);				//
-					audio_stream_consumer((char *)inpdata, rest, (void *)player_config);
+					audio_stream_consumer((char*)inpdata, rest, (void*)player_config); //write stream data in bufer 
 				}
 				rest = 0;
 			}
@@ -1198,7 +1198,7 @@ void clientReceiveCallback(int sockfd, char *pdata, int len)
 				//				if (spiRamFifoFree() < len) ESP_LOGV(TAG,"metaout wait len: %d, bufferfree: %d",len,spiRamFifoFree());
 				while (spiRamFifoFree() < len) // wait some room
 					vTaskDelay(20);
-				audio_stream_consumer((char *)(pdata + rest), len, (void *)player_config);
+				audio_stream_consumer((char*)(pdata + rest), len, (void*)player_config); //write stream data in bufer 
 			}
 		}
 		// ---------------
@@ -1223,7 +1223,7 @@ void clientReceiveCallback(int sockfd, char *pdata, int len)
 uint8_t bufrec[RECEIVE + 20];
 static char useragent[40];
 
-void clientTask(void *pvParams)
+void clientTask(void* pvParams)
 {
 	portBASE_TYPE uxHighWaterMark;
 	struct timeval timeout;
@@ -1267,15 +1267,16 @@ void clientTask(void *pvParams)
 			bzero(&dest, sizeof(dest));
 			dest.sin_family = AF_INET;
 			dest.sin_port = htons(clientPort);
-			dest.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr *)(server->h_addr_list[0])));
+			dest.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr*)(server->h_addr_list[0])));
 			bytes_read = 0;
+
 			/*---Connect to server---*/
-			if (connect(sockfd, (struct sockaddr *)&dest, sizeof(dest)) >= 0)
+			if (connect(sockfd, (struct sockaddr*) & dest, sizeof(dest)) >= 0)
 			{
 				//				printf("WebClient Socket connected\n");
 				memset(bufrec, 0, RECEIVE + 20);
 
-				char *t0 = strstr(clientPath, ".m3u");
+				char* t0 = strstr(clientPath, ".m3u");
 				if (t0 == NULL)
 					t0 = strstr(clientPath, ".pls");
 				if (t0 == NULL)
@@ -1288,20 +1289,20 @@ void clientTask(void *pvParams)
 				{
 					cstatus = C_PLAYLIST;
 					//printf("sprint%d\n",6);
-					sprintf((char *)bufrec, "GET %s HTTP/1.1\r\nHOST: %s\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent); //ask for the playlist
+					sprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHOST: %s\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent); //ask for the playlist
 				}
 				else
 				{
 					if (strcmp(clientURL, "stream.pcradio.biz") == 0)
 						strcpy(useragent, "pcradio");
 					//printf("sprint%d\n",7);
-					sprintf((char *)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
+					sprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
 				}
 				//printf("st:%d, Client Sent:\n%s\n",cstatus,bufrec);
 				xSemaphoreTake(sConnected, 0);
-				send(sockfd, (char *)bufrec, strlen((char *)bufrec), 0);
+				send(sockfd, (char*)bufrec, strlen((char*)bufrec), 0);
 
-				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) < 0)
 					ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  errno:%d ", sockfd, bytes_read, errno);
 				//////
 				cnterror = 0;
@@ -1320,11 +1321,11 @@ void clientTask(void *pvParams)
 					if (bytes_read > 0)
 					{
 						cnterror = 0;
-						clientReceiveCallback(sockfd, (char *)bufrec, bytes_read);
+						clientReceiveCallback(sockfd, (char*)bufrec, bytes_read);
 					}
 					else
 					{
-						ESP_LOGW(TAG, "No data in recv. Errno = %d", errno);
+						ESP_LOGE(TAG, "No data in recv. Errno = %d", errno);
 						cnterror++;
 						if (errno != 11)
 							vTaskDelay(20); //timeout
@@ -1398,11 +1399,11 @@ void clientTask(void *pvParams)
 			{
 				setVolumei(0);
 
-				ESP_LOGW(TAG, "Stop clean!!!! Stopping player");
+				ESP_LOGE(TAG, "Stop clean!!!! Stopping player");
 
 				if (get_player_status() != STOPPED)
 					audio_player_stop();
-	
+
 				//if (get_audio_output_mode() == VS1053) spiRamFifoReset();
 				player_config->media_stream->eof = true;
 				//				bufferReset();

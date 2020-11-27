@@ -2,10 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\components",
-    "\\components\\audio_player",
-    "\\components\\audio_renderer",
+    "\\components\\fifo",
     "\\main"
   ],
-  "SelectedNode": "\\components\\audio_renderer\\audio_renderer.c",
+  "SelectedNode": "\\main\\vs1053.c",
   "PreviewInSolutionExplorer": false
 }

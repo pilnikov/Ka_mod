@@ -771,6 +771,11 @@ void vsTask(void *pvParams)
 				s += VS1053_SendMusicBytes(b + s, size - s);
 			}
 		}
+		else
+		{
+			ESP_LOGE(TAG, "Music buffer is emty - Nothing playing :(");
+		}
+		
 		vTaskDelay(2);
 	}
 

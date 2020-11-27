@@ -105,7 +105,7 @@ static int start_decoder_task(player_t* player)
 		spiRamFifoReset();
 		return -1;
 	}
-	else 
+	else
 	{
 		player->decoder_status = RUNNING;
 	}
