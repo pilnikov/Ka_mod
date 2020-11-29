@@ -3,8 +3,10 @@
     "",
     "\\components",
     "\\components\\fifo",
+    "\\components\\u8g2",
+    "\\components\\u8g2\\csrc",
     "\\main"
   ],
-  "SelectedNode": "\\main\\vs1053.c",
+  "SelectedNode": "\\components\\u8g2\\csrc\\u8g2_buffer.c",
   "PreviewInSolutionExplorer": false
 }
