@@ -778,14 +778,7 @@ void vsTask(void *pvParams)
 			size = 	VSTASKBUF;
 		}
 		*/
-		uint8_t fill_level = (spiRamFifoFill() * 100) / spiRamFifoLen();
-		while (fill_level < 5)
-			{
-				fill_level = (spiRamFifoFill() * 100) / spiRamFifoLen();
-				ESP_LOGI(TAG, "Wait while Buffer fill %u%%", fill_level);
-				vTaskDelay(5);
-			}
-		
+
 		size = min(VSTASKBUF, spiRamFifoFill());
 
 		if (size > 0)
