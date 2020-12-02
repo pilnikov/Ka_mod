@@ -2,11 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\components",
+    "\\components\\audio_player",
+    "\\components\\common",
     "\\components\\fifo",
-    "\\components\\u8g2",
     "\\components\\u8g2\\csrc",
-    "\\main"
+    "\\main",
+    "\\main\\include"
   ],
-  "SelectedNode": "\\components\\u8g2\\csrc\\u8g2_buffer.c",
+  "SelectedNode": "\\components\\fifo\\spiram_fifo.c",
   "PreviewInSolutionExplorer": false
 }

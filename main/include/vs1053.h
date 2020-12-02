@@ -115,10 +115,9 @@ void Delay(uint32_t nTime);
 void ControlReset(uint8_t State);
 void SCI_ChipSelect(uint8_t State);
 void SDI_ChipSelect(uint8_t State);
-void WriteVS10xxRegister(unsigned short addr,unsigned short val);
-void VS1053_WriteRegister(uint8_t addressbyte,
-		uint8_t highbyte, uint8_t lowbyte);
-uint16_t VS1053_ReadRegister(uint8_t addressbyte);
+void VS1053_WriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte);
+void VS1053_WriteSci(uint8_t addr, uint16_t value);
+uint16_t VS1053_ReadSci(uint8_t addr);
 void VS1053_ResetChip();
 
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift);
@@ -129,6 +128,8 @@ void VS1053_regtest();
 void VS1053_sine(char pitch);
 void VS1053_SPI_SpeedUp();
 void VS1053_SPI_SpeedDown();
+void VS1053_LoadPlugin(const uint16_t *d, uint16_t len);
+
 //void VS1053_PluginLoad();
 
 void vsTask(void *pvParams) ;

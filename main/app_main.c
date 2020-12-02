@@ -1015,8 +1015,8 @@ void app_main()
 	//doesn't, warn user.
 	if (bigRam)
 	{
-		setSPIRAMSIZE(420 * 1024); // room in psram
-		ESP_LOGI(TAG, "Set Song buffer to 420k");
+		setSPIRAMSIZE(1024 * 1024); // room in psram
+		ESP_LOGI(TAG, "Set Song buffer to 1024k");
 	}
 	else
 	{

@@ -23,7 +23,6 @@ idf_component_register(
 	"telnet.c"
 	"timezone.c"
 	"vs1053.c"
-	"vs1053b-patches.c"
 	"webclient.c"
 	"webserver.c"
 	"websocket.c"
