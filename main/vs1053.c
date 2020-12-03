@@ -32,7 +32,7 @@
 //#include "freertos/event_groups.h"
 //#include "freertos\queue.h"
 
-#include "vs1053b-patches-flac.plg"
+#include "vs10xx-patches-flac.plg"
 
 
 #define TAG "vs1053"
@@ -434,7 +434,7 @@ void VS1053_Start()
 	VS1053_regtest();
 
 	// enable I2C dac output of the vs1053
-	if (vsVersion == 4) // only 1053
+	if (vsVersion == 4 || vsVersion == 6) // only 1053
 	{
 		VS1053_WriteSci(SPI_WRAMADDR, 0xc017); //
 		VS1053_WriteSci(SPI_WRAM, 0x00F0);	 //
@@ -443,7 +443,16 @@ void VS1053_Start()
 		// plugin patch
 		if ((g_device->options & T_PATCH) == 0)
 		{
-			  VS1053_LoadPlugin(plugin, sizeof(plugin)/sizeof(plugin[0]));
+			uint16_t len = 0;
+			if (vsVersion == 4) { // only 1053
+				len = sizeof(patch1053) / sizeof(patch1053[0]);
+					VS1053_LoadPlugin(patch1053, len);
+			}
+			if (vsVersion == 6){ // only 1063
+				len = sizeof(patch1063) / sizeof(patch1063[0]);
+				VS1053_LoadPlugin(patch1063, len);
+			}
+			ESP_LOGI(TAG, "VS10xx patch is loaded %d \n", len);
 		}
 	}
 	vTaskDelay(5);

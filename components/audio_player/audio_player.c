@@ -144,12 +144,13 @@ int audio_stream_consumer(const char* recv_buf, ssize_t bytes_read,
 	if (player->decoder_status != RUNNING)
 	{
 		t = 0;
-		uint32_t trigger = (bigSram()) ? (70 * 1024) : (20 * 1024);
+		uint32_t trigger = (bigSram()) ? (100 * 1024) : (20 * 1024);
 		bool buffer_ok = (bytes_in_buf > trigger);
 		if (buffer_ok)
 		{
 			// buffer is filled, start decoder
-			ESP_LOGV(TAG, "trigger: %d", trigger);
+			ESP_LOGI(TAG, "Buffer is filled, start decoder %u%%", fill_level);
+//			ESP_LOGV(TAG, "trigger: %d", trigger);
 			if (start_decoder_task(player) != 0) {
 				ESP_LOGE(TAG, "failed to start decoder task");
 				audio_player_stop();
