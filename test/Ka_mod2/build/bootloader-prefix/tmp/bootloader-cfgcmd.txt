@@ -1,1 +1,0 @@
-cmd='Z:/espressif/tools/cmake/3.16.4/bin/cmake.exe;-DSDKCONFIG=Z:/examples/Ka_mod2/sdkconfig;-DIDF_PATH=Z:/esp-idf;-DIDF_TARGET=esp32;-DPYTHON_DEPS_CHECKED=1;-DPYTHON=z:/espressif/python_env/idf4.3_py3.9_env/Scripts/python.exe;-DEXTRA_COMPONENT_DIRS=Z:/esp-idf/components/bootloader;-DLEGACY_INCLUDE_COMMON_HEADERS=;-GNinja;<SOURCE_DIR><SOURCE_SUBDIR>'
