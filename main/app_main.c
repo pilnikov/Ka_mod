@@ -674,43 +674,15 @@ void start_network()
 			switch (g_device->current_ap)
 			{
 			case STA1: //ssid1 used
-				ip4_addr_copy(ipAddr, info.ip);
-				g_device->ipAddr1[0] = ip4_addr1_val(ipAddr);
-				g_device->ipAddr1[1] = ip4_addr2_val(ipAddr);
-				g_device->ipAddr1[2] = ip4_addr3_val(ipAddr);
-				g_device->ipAddr1[3] = ip4_addr4_val(ipAddr);
-
-				ip4_addr_copy(ipAddr, info.gw);
-				g_device->gate1[0] = ip4_addr1_val(ipAddr);
-				g_device->gate1[1] = ip4_addr2_val(ipAddr);
-				g_device->gate1[2] = ip4_addr3_val(ipAddr);
-				g_device->gate1[3] = ip4_addr4_val(ipAddr);
-
-				ip4_addr_copy(ipAddr, info.netmask);
-				g_device->mask1[0] = ip4_addr1_val(ipAddr);
-				g_device->mask1[1] = ip4_addr2_val(ipAddr);
-				g_device->mask1[2] = ip4_addr3_val(ipAddr);
-				g_device->mask1[3] = ip4_addr4_val(ipAddr);
+				ip4addr_aton((const char *)&g_device->ipAddr1,(ip4_addr_t *)&info.ip);
+				ip4addr_aton((const char *)&g_device->gate1,(ip4_addr_t *)&info.gw);
+				ip4addr_aton((const char *)&g_device->mask1,(ip4_addr_t *)&info.netmask);
 				break;
 
 			case STA2: //ssid2 used
-				ip4_addr_copy(ipAddr, info.ip);
-				g_device->ipAddr2[0] = ip4_addr1_val(ipAddr);
-				g_device->ipAddr2[1] = ip4_addr2_val(ipAddr);
-				g_device->ipAddr2[2] = ip4_addr3_val(ipAddr);
-				g_device->ipAddr2[3] = ip4_addr4_val(ipAddr);
-
-				ip4_addr_copy(ipAddr, info.gw);
-				g_device->gate2[0] = ip4_addr1_val(ipAddr);
-				g_device->gate2[1] = ip4_addr2_val(ipAddr);
-				g_device->gate2[2] = ip4_addr3_val(ipAddr);
-				g_device->gate2[3] = ip4_addr4_val(ipAddr);
-
-				ip4_addr_copy(ipAddr, info.netmask);
-				g_device->mask2[0] = ip4_addr1_val(ipAddr);
-				g_device->mask2[1] = ip4_addr2_val(ipAddr);
-				g_device->mask2[2] = ip4_addr3_val(ipAddr);
-				g_device->mask2[3] = ip4_addr4_val(ipAddr);
+				ip4addr_aton((const char *)&g_device->ipAddr2,(ip4_addr_t *)&info.ip);
+				ip4addr_aton((const char *)&g_device->gate2,(ip4_addr_t *)&info.gw);
+				ip4addr_aton((const char *)&g_device->mask2,(ip4_addr_t *)&info.netmask);
 				break;
 			}
 		}

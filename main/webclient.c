@@ -44,6 +44,8 @@ static char parEmpty[] = { " " };
 const char CLIPLAY[] = { "##CLI.PLAYING#%c%c" };
 const char CLISTOP[] = { "##CLI.STOPPED# from %s\n" };
 
+const char *sterr;
+
 #define strcMALLOC "Client: incmalloc fails for %d"
 #define strcMALLOC1 "%s malloc fails"
 
@@ -805,10 +807,10 @@ void clientSilentDisconnect()
 	if (get_player_status() != STOPPED)
 		audio_player_stop();
 
-	for (int i = 0; i < 100; i++)
+	int i = 0;
+	while (!clientIsConnected() && i < 100)
 	{
-		if (!clientIsConnected())
-			break;
+		i++;
 		vTaskDelay(1);
 	}
 	esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
@@ -824,12 +826,13 @@ void clientDisconnect(const char* from)
 	if (get_player_status() != STOPPED)
 		audio_player_stop();
 
-	for (int i = 0; i < 100; i++)
+	int i = 0;
+	while (!clientIsConnected() && i < 100)
 	{
-		if (!clientIsConnected())
-			break;
+		i++;
 		vTaskDelay(1);
 	}
+
 	if ((from[0] != 'C') || (from[1] != '_'))
 		if (!ledStatus)
 			if (getLedGpio() != GPIO_NONE)
@@ -1257,10 +1260,12 @@ void clientTask(void* pvParams)
 			//VS1053_HighPower();
 			xSemaphoreTake(sDisconnect, 0);
 			sockfd = socket(AF_INET, SOCK_STREAM, 0);
-			ESP_LOGI(TAG, "Webclient socket: %d, errno: %d", sockfd, errno);
+			sterr = lwip_strerr(errno);
+			ESP_LOGI(TAG, "Webclient socket: %d, err: %s", sockfd, sterr);
 			if (sockfd < 0)
 			{
-				ESP_LOGE(TAG, "Webclient socket create, errno: %d", errno);
+				sterr = lwip_strerr(errno);
+				ESP_LOGE(TAG, "Webclient socket create, err: %s", sterr);
 				xSemaphoreGive(sDisconnect);
 				continue;
 			}
@@ -1300,10 +1305,13 @@ void clientTask(void* pvParams)
 				}
 				//printf("st:%d, Client Sent:\n%s\n",cstatus,bufrec);
 				xSemaphoreTake(sConnected, 0);
+
+				kprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
 				send(sockfd, (char*)bufrec, strlen((char*)bufrec), 0);
 
 				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) < 0)
-					ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  errno:%d ", sockfd, bytes_read, errno);
+					sterr = lwip_strerr(errno);
+					ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  err: %s", sockfd, bytes_read, sterr);
 				//////
 				cnterror = 0;
 				do
@@ -1311,7 +1319,8 @@ void clientTask(void* pvParams)
 					bytes_read = recvfrom(sockfd, bufrec, RECEIVE, 0, NULL, NULL);
 					if (bytes_read < 0)
 					{
-						ESP_LOGE(TAG, "Client socket: %d  read: %d  errno:%d ", sockfd, bytes_read, errno);
+						sterr = lwip_strerr(errno);
+						ESP_LOGE(TAG, "Client socket: %d  read: %d  err: %s", sockfd, bytes_read, sterr);
 						if (errno == 11)
 							bytes_read = 0;
 					}
@@ -1325,7 +1334,8 @@ void clientTask(void* pvParams)
 					}
 					else
 					{
-						ESP_LOGE(TAG, "No data in recv. Errno = %d", errno);
+						sterr = lwip_strerr(errno);
+						ESP_LOGE(TAG, "No data in recv. Err: %s", sterr);
 						cnterror++;
 						if (errno != 11)
 							vTaskDelay(20); //timeout
@@ -1345,7 +1355,8 @@ void clientTask(void* pvParams)
 			}
 			else
 			{
-				ESP_LOGE(TAG, "Client socket: %d  connect: %d  errno:%d ", sockfd, bytes_read, errno);
+				sterr = lwip_strerr(errno);
+				ESP_LOGE(TAG, "Client socket: %d  connect: %d  err: %s ", sockfd, bytes_read, sterr);
 				clientSaveOneHeader("Invalid address", 15, METANAME);
 				wsHeaders();
 				vTaskDelay(1);

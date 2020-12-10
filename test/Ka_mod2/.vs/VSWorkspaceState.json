@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\components",
+    "\\components\\audio_player",
+    "\\components\\audio_player\\include",
+    "\\components\\fifo",
+    "\\main",
+    "\\main\\include"
+  ],
+  "SelectedNode": "\\main\\webclient.c",
+  "PreviewInSolutionExplorer": false
+}

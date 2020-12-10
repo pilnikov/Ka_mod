@@ -1,0 +1,82 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "CMAKE_MAKE_PROGRAM",
+          "value": "Z:/espressif/tools/ninja/1.10.0/ninja.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_C_COMPILER",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-gcc.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_AR",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-ar.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_OBJCOPY",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-objcopy.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_ADDR2LINE",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-addr2line.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_NM",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-nm.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_READELF",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-readelf.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_RANLIB",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-ranlib.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_LINKER",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-ld.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_OBJDUMP",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-objdump.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "CMAKE_STRIP",
+          "value": "Z:/espressif/tools/xtensa-esp32-elf/esp-2020r3-8.4.0/xtensa-esp32-elf/bin/xtensa-esp32-elf-strip.exe",
+          "type": "FILEPATH"
+        },
+        {
+          "name": "GIT_EXECUTABLE",
+          "value": "C:/Program Files/Git/bin/git.exe",
+          "type": "FILEPATH"
+        }
+      ]
+    }
+  ]
+}
