@@ -122,7 +122,7 @@ bool vsHW_init()
 		.spics_io_num = xcs, //XCS pin
 		.queue_size = 1,	 //We want to be able to queue x transactions at a time
 		.pre_cb = NULL, //Specify pre-transfer callback to handle D/C line
-		.post_cb = NULL};
+		.post_cb = NULL };
 
 	//slow speed
 	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
@@ -167,32 +167,33 @@ uint8_t vscheckDREQ()
 	return gpio_get_level(dreq);
 }
 
-void vsLoadPlugin(const uint16_t *d, uint16_t len) 
+void vsLoadPlugin(const uint16_t* d, uint16_t len)
 {
-  int i = 0;
+	int i = 0;
 
-  while (i<len) {
-    unsigned short addr, n, val;
-    addr = d[i++];
-    n = d[i++];
-    if (n & 0x8000U) { /* RLE run, replicate n samples */
-      n &= 0x7FFF;
-      val = d[i++];
-      while (n--) {
-        vsWriteSci(addr, val);
-      }
-    } else {           /* Copy run, copy n samples */
-      while (n--) {
-        val = d[i++];
-        vsWriteSci(addr, val);
-      }
-    }
-  }
+	while (i < len) {
+		unsigned short addr, n, val;
+		addr = d[i++];
+		n = d[i++];
+		if (n & 0x8000U) { /* RLE run, replicate n samples */
+			n &= 0x7FFF;
+			val = d[i++];
+			while (n--) {
+				vsWriteSci(addr, val);
+			}
+		}
+		else {           /* Copy run, copy n samples */
+			while (n--) {
+				val = d[i++];
+				vsWriteSci(addr, val);
+			}
+		}
+	}
 }
 
 
-/*-- System functons for VS10xx --*/ 
-void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t *cbyte, uint16_t len)
+/*-- System functons for VS10xx --*/
+void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t* cbyte, uint16_t len)
 {
 	esp_err_t ret;
 	spi_transaction_t t;
@@ -307,7 +308,7 @@ void vsResetChip()
 	vTaskDelay(30);
 	ControlReset(RESET);
 	vTaskDelay(30);
-	
+
 	vsDisableAnalog();
 
 	if (vscheckDREQ() == 1)
@@ -324,25 +325,25 @@ uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)
   Read 16-bit value from addr.
 */
 uint16_t ReadVS10xxMem(uint16_t addr) {
-  vsWriteSci(SCI_WRAMADDR, addr);
-  return vsReadSci(SCI_WRAM);
+	vsWriteSci(SCI_WRAMADDR, addr);
+	return vsReadSci(SCI_WRAM);
 }
 
 enum AudioFormat {
-  afUnknown,
-  afRiff,
-  afOggVorbis,
-  afMp1,
-  afMp2,
-  afMp3,
-  afAacMp4,
-  afAacAdts,
-  afAacAdif,
-  afFlac,
-  afWma,
+	afUnknown,
+	afRiff,
+	afOggVorbis,
+	afMp1,
+	afMp2,
+	afMp3,
+	afAacMp4,
+	afAacAdts,
+	afAacAdif,
+	afFlac,
+	afWma,
 } audioFormat = afUnknown;
 
-const char *afName[] = {
+const char* afName[] = {
   "unknown",
   "RIFF",
   "Ogg",
@@ -358,65 +359,75 @@ const char *afName[] = {
 
 void vsInfo()
 {
-     	int endFillBytes = SDI_END_FILL_BYTES;  // How many of those to send
-		static int vuMeter = 0;       // VU meter active
-	
-	    uint16_t sampleRate;
-        uint16_t hehtoBitsPerSec;
-        uint16_t h1 = vsReadSci(SCI_HDAT1);
- 
-		if (h1 == 0x7665) {
-          audioFormat = afRiff;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if (h1 == 0x4154) {
-          audioFormat = afAacAdts;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if (h1 == 0x4144) {
-          audioFormat = afAacAdif;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if (h1 == 0x574d) {
-          audioFormat = afWma;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if (h1 == 0x4f67) {
-          audioFormat = afOggVorbis;
-          endFillBytes = SDI_END_FILL_BYTES_FLAC;
-        } else if (h1 == 0x664c) {
-          audioFormat = afFlac;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if (h1 == 0x4d34) {
-          audioFormat = afAacMp4;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if ((h1 & 0xFFE6) == 0xFFE2) {
-          audioFormat = afMp3;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if ((h1 & 0xFFE6) == 0xFFE4) {
-          audioFormat = afMp2;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else if ((h1 & 0xFFE6) == 0xFFE6) {
-          audioFormat = afMp1;
-          endFillBytes = SDI_END_FILL_BYTES;
-        } else {
-          audioFormat = afUnknown;
-          endFillBytes = SDI_END_FILL_BYTES_FLAC;
-        }
+	int endFillBytes = SDI_END_FILL_BYTES;  // How many of those to send
+	static int vuMeter = 0;       // VU meter active
 
-        sampleRate = vsReadSci(SCI_AUDATA);
-        hehtoBitsPerSec = ReadVS10xxMem(PAR_BITRATE_PER_100);
+	uint16_t sampleRate;
+	uint16_t hehtoBitsPerSec;
+	uint16_t h1 = vsReadSci(SCI_HDAT1);
 
-        ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s %04x ",
-               vsReadSci(SCI_DECODE_TIME),
-               hehtoBitsPerSec * 0.1,
-               sampleRate & 0xFFFE, (sampleRate & 1) ? "stereo" : "mono",
-               afName[audioFormat], h1
-               );
-          
-        if (vuMeter) {
-          int vu, l, r;
-          vu = ReadVS10xxMem(PAR_VU_METER);
-          l = vu >> 8;
-          r = vu & 0xFF;
-          ESP_LOGI(TAG, "%2d %2d ", l, r);
-        }
+	if (h1 == 0x7665) {
+		audioFormat = afRiff;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if (h1 == 0x4154) {
+		audioFormat = afAacAdts;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if (h1 == 0x4144) {
+		audioFormat = afAacAdif;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if (h1 == 0x574d) {
+		audioFormat = afWma;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if (h1 == 0x4f67) {
+		audioFormat = afOggVorbis;
+		endFillBytes = SDI_END_FILL_BYTES_FLAC;
+	}
+	else if (h1 == 0x664c) {
+		audioFormat = afFlac;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if (h1 == 0x4d34) {
+		audioFormat = afAacMp4;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if ((h1 & 0xFFE6) == 0xFFE2) {
+		audioFormat = afMp3;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if ((h1 & 0xFFE6) == 0xFFE4) {
+		audioFormat = afMp2;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else if ((h1 & 0xFFE6) == 0xFFE6) {
+		audioFormat = afMp1;
+		endFillBytes = SDI_END_FILL_BYTES;
+	}
+	else {
+		audioFormat = afUnknown;
+		endFillBytes = SDI_END_FILL_BYTES_FLAC;
+	}
+
+	sampleRate = vsReadSci(SCI_AUDATA);
+	hehtoBitsPerSec = ReadVS10xxMem(PAR_BITRATE_PER_100);
+
+	ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s %04x ",
+		vsReadSci(SCI_DECODE_TIME),
+		hehtoBitsPerSec * 0.1,
+		sampleRate & 0xFFFE, (sampleRate & 1) ? "stereo" : "mono",
+		afName[audioFormat], h1
+	);
+
+	if (vuMeter) {
+		int vu, l, r;
+		vu = ReadVS10xxMem(PAR_VU_METER);
+		l = vu >> 8;
+		r = vu & 0xFF;
+		ESP_LOGI(TAG, "%2d %2d ", l, r);
+	}
 } /* REPORT_ON_SCREEN */
 
 
@@ -425,8 +436,8 @@ void vsInfo()
 void vsregtest()
 {
 	int vsStatus = vsReadSci(SCI_STATUSVS);
-	int vsMode   = vsReadSci(SCI_MODE);
-	int vsClock  = vsReadSci(SCI_CLOCKF);
+	int vsMode = vsReadSci(SCI_MODE);
+	int vsClock = vsReadSci(SCI_CLOCKF);
 	ESP_LOGI(TAG, "SCI_Status = 0x%X", vsStatus);
 	ESP_LOGI(TAG, "SCI_Mode (0x4800) = 0x%X", vsMode);
 	ESP_LOGI(TAG, "SCI_ClockF = 0x%X", vsClock);
@@ -438,7 +449,7 @@ void vsI2SRate(uint8_t speed)
 { // 0 = 48kHz, 1 = 96kHz, 2 = 128kHz
 	if (speed > 2)
 		speed = 0;
-	if (vsVersion != 4)
+	if (vsVersion < 3)
 		return;
 	vsWriteSci(SCI_WRAMADDR, 0xc040);	 //address of GPIO_ODATA is 0xC017
 	vsWriteSci(SCI_WRAM, 0x0008 | speed); //
@@ -490,7 +501,7 @@ void vsStart()
 	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
 	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
 	//5 for VS1033, 7 for VS1103, and 6 for VS1063
-	
+
 	ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
 	if (vsVersion == 4)								// only 1053b
 		vsWriteSci(SCI_CLOCKF, 0x8800);        // SC_MULT = x3.5, SC_ADD= x1
@@ -515,9 +526,9 @@ void vsStart()
 			uint16_t len = 0;
 			if (vsVersion == 4) { // only 1053
 				len = sizeof(patch1053) / sizeof(patch1053[0]);
-					vsLoadPlugin(patch1053, len);
+				vsLoadPlugin(patch1053, len);
 			}
-			if (vsVersion == 6){ // only 1063
+			if (vsVersion == 6) { // only 1063
 				len = sizeof(patch1063) / sizeof(patch1063[0]);
 				vsLoadPlugin(patch1063, len);
 			}
@@ -525,9 +536,9 @@ void vsStart()
 		}
 	}
 	vTaskDelay(5);
-	ESP_LOGI(TAG,"volume: %d",g_device->vol);
-	setIvol( g_device->vol);
-	vsSetVolume( g_device->vol);	
+	ESP_LOGI(TAG, "volume: %d", g_device->vol);
+	setIvol(g_device->vol);
+	vsSetVolume(g_device->vol);
 	vsSetTreble(g_device->treble);
 	vsSetBass(g_device->bass);
 	vsSetTrebleFreq(g_device->freqtreble);
@@ -535,7 +546,7 @@ void vsStart()
 	vsSetSpatial(g_device->spacial);
 }
 
-int vsSendMusicBytes(uint8_t *music, uint16_t quantity)
+int vsSendMusicBytes(uint8_t* music, uint16_t quantity)
 {
 	if (quantity == 0)
 		return 0;
@@ -691,7 +702,7 @@ uint8_t vsGetBassFreq()
 
 uint8_t vsGetSpatial()
 {
-	if (vsVersion != 4)
+	if (vsVersion < 3)
 		return 0;
 	uint16_t spatial = (vsReadSci(SCI_MODE) & 0x0090) >> 4;
 	return ((spatial & 1) | ((spatial >> 2) & 2));
@@ -699,7 +710,7 @@ uint8_t vsGetSpatial()
 
 void vsSetSpatial(uint8_t num)
 {
-	if (vsVersion != 4)
+	if (vsVersion < 3)
 		return;
 	uint16_t spatial = vsReadSci(SCI_MODE);
 	if (num <= 3)
@@ -816,14 +827,14 @@ void vsflush_cancel(uint8_t mode)
 }
 
 //IRAM_ATTR
-void vsTask(void *pvParams)
+void vsTask(void* pvParams)
 {
 #define VSTASKBUF 1024
 	portBASE_TYPE uxHighWaterMark;
 	uint8_t b[VSTASKBUF];
 	uint16_t size, s;
 
-	player_t *player = pvParams;
+	player_t* player = pvParams;
 
 	while (player->decoder_command != CMD_STOP)
 	{
@@ -831,7 +842,7 @@ void vsTask(void *pvParams)
 
 		if (size > 0)
 		{
-			spiRamFifoRead((char *)b, size);
+			spiRamFifoRead((char*)b, size);
 			s = 0;
 			while (s < size)
 			{
@@ -843,7 +854,7 @@ void vsTask(void *pvParams)
 			ESP_LOGE(TAG, "Music buffer is emty - Nothing playing :(");
 			vTaskDelay(10);
 		}
-		
+
 		vTaskDelay(2);
 	}
 
