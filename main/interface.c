@@ -14,7 +14,7 @@
 #include "ntp.h"
 #include "webclient.h"
 #include "webserver.h"
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "gpio.h"
 #include "ota.h"
 #include "spiram_fifo.h"

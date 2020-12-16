@@ -20,7 +20,7 @@
  //#include "libfaad_decoder.h"
 #include "mp3_decoder.h"
 #include "webclient.h"
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "app_main.h"
 
 #define TAG "audio_player"

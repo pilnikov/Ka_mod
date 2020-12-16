@@ -12,7 +12,6 @@
 
 #ifdef KaRadio32
 #include "gpio.h"
-#include "vs1053.h"
 #endif
 static const char *TAG = "u8g2_hal";
 static const unsigned int I2C_TIMEOUT_MS = 1000;

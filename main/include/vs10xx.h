@@ -1,15 +1,17 @@
 /*
- * VS1053.h
+ * VS10xx.h
  *
  *  Created on: 25-04-2011
  *      Author: Przemyslaw Stasiak
  *
  * Mofified for KaRadio32
  *		Author: KaraWin
+ * Mofified for KaRadio32
+ *		Author: Pilnikov
  */
 #pragma once
-#ifndef vsH_
-#define vsH_
+#ifndef VS10xx_H_
+#define VS10xx_H_
 
 #include "esp_system.h"
 #include "interface.h"
@@ -137,4 +139,4 @@ void vsLoadPlugin(const uint16_t *d, uint16_t len);
 
 void vsTask(void *pvParams) ;
 
-#endif /* vsH_ */
+#endif /* VS10xx_H_ */

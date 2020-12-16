@@ -13,7 +13,7 @@
 #include "esp_wifi.h"
 #include "freertos/semphr.h"
 
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "eeprom.h"
 #include "interface.h"
 #include "gpio.h"

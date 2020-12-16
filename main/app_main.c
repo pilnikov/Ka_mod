@@ -39,7 +39,7 @@ Copyright (C) 2017  KaraWin
 #include "webclient.h"
 #include "webserver.h"
 #include "interface.h"
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "ClickEncoder.h"
 #include "addon.h"
 //#include "rda5807Task.h"

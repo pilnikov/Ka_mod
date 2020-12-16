@@ -18,7 +18,6 @@
 
 #ifdef KaRadio32
 #include "gpio.h"
-#include "vs1053.h"
 
 #endif
 

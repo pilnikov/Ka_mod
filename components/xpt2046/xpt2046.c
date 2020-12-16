@@ -15,7 +15,6 @@
 #include "esp_log.h"
 #ifdef KaRadio32
 #include "gpio.h"
-#include "vs1053.h"
 #include "eeprom.h"
 #include "interface.h"
 #endif
