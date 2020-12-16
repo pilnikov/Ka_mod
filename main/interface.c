@@ -768,7 +768,7 @@ void sysI2S(char *s)
 		return;
 	}
 	uint8_t speed = atoi(t + 2);
-	VS1053_I2SRate(speed);
+	vsI2SRate(speed);
 
 	g_device->i2sspeed = speed;
 	saveDeviceSettings(g_device);

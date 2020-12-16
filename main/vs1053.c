@@ -12,30 +12,19 @@
 /** @addtogroup VS1053
   * @{
   */
-#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
-#define CHUNK 32
-#include "vs1053.h"
-#include "gpio.h"
-#include "eeprom.h"
-#include <string.h>
-#include "driver/spi_master.h"
-#include "soc/gpio_struct.h"
-#include "driver/gpio.h"
-#include <math.h>
-#include "interface.h"
-#include "app_main.h"
-#include "audio_player.h"
-#include "spiram_fifo.h"
-//#include "common_buffer.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-//#include "freertos/event_groups.h"
-//#include "freertos\queue.h"
 
+#include "vs1053.h"
 #include "vs10xx-patches-flac.plg"
 
 
-#define TAG "vs1053"
+#define CHUNK 32
+
+
+#define TAG "VS10xx"
+#define SDI_END_FILL_BYTES_FLAC 12288
+#define SDI_END_FILL_BYTES       2050
+#define PAR_BITRATE_PER_100    0x1e05 /* VS1063 */
+#define PAR_VU_METER           0x1e0c /* VS1063 */
 
 int vsVersion = -1; // the version of the chip
 //	SS_VER is 0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053, 5 for VS1033, 7 for VS1103, and 6 for VS1063.
@@ -71,7 +60,6 @@ void Spi_init()
 	gpio_num_t sclk;
 
 	uint8_t spi_no; // the spi bus to use
-					//	if(!vsSPI) vSemaphoreCreateBinary(vsSPI);
 	if (!vsSPI)
 		vsSPI = xSemaphoreCreateMutex();
 	if (!hsSPI)
@@ -91,17 +79,15 @@ void Spi_init()
 		.sclk_io_num = sclk,
 		.quadwp_io_num = -1,
 		.quadhd_io_num = -1,
-		// .flags = SPICOMMON_BUSFLAG_NATIVE_PINS|SPICOMMON_BUSFLAG_MASTER
 		.flags = SPICOMMON_BUSFLAG_MASTER
-		// .max_transfer_sz = 1024
 	};
 	ret = spi_bus_initialize(spi_no, &buscfg, 1); // dma
 	assert(ret == ESP_OK);
 }
 
-int getVsVersion() { return vsVersion; }
+int get_vsVersion() { return vsVersion; }
 
-bool VS1053_HW_init()
+bool vsHW_init()
 {
 	gpio_num_t miso;
 	gpio_num_t mosi;
@@ -114,15 +100,15 @@ bool VS1053_HW_init()
 	gpio_get_spi_bus(&spi_no, &miso, &mosi, &sclk);
 	gpio_get_vs1053(&xcs, &rst, &xdcs, &dreq);
 
-	// if xcs = 0 the vs1053 is not used
+	// if xcs = 0 the vs10xx is not used
 	if (xcs == GPIO_NONE)
 	{
 		vsVersion = 0;
-		ESP_LOGE(TAG, "VS1053 not used");
+		ESP_LOGE(TAG, "VS10xx not used");
 		return false;
 	}
 	uint32_t freq = spi_get_actual_clock(APB_CLK_FREQ, 1400000, 128);
-	ESP_LOGI(TAG, "VS1053 LFreq: %d", freq);
+	ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
 	spi_device_interface_config_t devcfg = {
 		.clock_speed_hz = freq, //Clock out at x MHz
 		.command_bits = 8,
@@ -135,7 +121,6 @@ bool VS1053_HW_init()
 		.mode = 0,			 //SPI mode
 		.spics_io_num = xcs, //XCS pin
 		.queue_size = 1,	 //We want to be able to queue x transactions at a time
-		//.pre_cb=lcd_spi_pre_transfer_callback,  //Specify pre-transfer callback to handle D/C line
 		.pre_cb = NULL, //Specify pre-transfer callback to handle D/C line
 		.post_cb = NULL};
 
@@ -144,34 +129,31 @@ bool VS1053_HW_init()
 
 	//high speed
 	freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
-	ESP_LOGI(TAG, "VS1053 HFreq: %d", freq);
+	ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
 	devcfg.clock_speed_hz = freq;
 	devcfg.spics_io_num = xdcs; //XDCS pin
 	devcfg.command_bits = 0;
 	devcfg.address_bits = 0;
 	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
 
-	//Initialize non-SPI GPIOs
+	/*---- Initialize non-SPI GPIOs ----*/
 	gpio_config_t gpio_conf;
 	gpio_conf.mode = GPIO_MODE_OUTPUT;
 	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 	gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
 	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst));
+	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
 	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
-	ControlReset(RESET);
-	//gpio_set_direction(rst, GPIO_MODE_OUTPUT);
+	ControlReset(RESET); //Set xrst pin level to HIGH
 
 	gpio_conf.mode = GPIO_MODE_INPUT;
 	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
 	gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
 	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq));
+	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
 	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
-	//gpio_set_direction(dreq, GPIO_MODE_INPUT);
-	//gpio_set_pull_mode(dreq, GPIO_PULLDOWN_ENABLE); //usefull for no vs1053 test
 	return true;
 }
 
@@ -180,12 +162,12 @@ void ControlReset(uint8_t State)
 	gpio_set_level(rst, State);
 }
 
-uint8_t VS1053_checkDREQ()
+uint8_t vscheckDREQ()
 {
 	return gpio_get_level(dreq);
 }
 
-void VS1053_LoadPlugin(const uint16_t *d, uint16_t len) 
+void vsLoadPlugin(const uint16_t *d, uint16_t len) 
 {
   int i = 0;
 
@@ -197,20 +179,20 @@ void VS1053_LoadPlugin(const uint16_t *d, uint16_t len)
       n &= 0x7FFF;
       val = d[i++];
       while (n--) {
-        VS1053_WriteSci(addr, val);
+        vsWriteSci(addr, val);
       }
     } else {           /* Copy run, copy n samples */
       while (n--) {
         val = d[i++];
-        VS1053_WriteSci(addr, val);
+        vsWriteSci(addr, val);
       }
     }
   }
 }
 
 
-//////////// 
-void VS1053_spi_write_char(spi_device_handle_t ivsspi, uint8_t *cbyte, uint16_t len)
+/*-- System functons for VS10xx --*/ 
+void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t *cbyte, uint16_t len)
 {
 	esp_err_t ret;
 	spi_transaction_t t;
@@ -218,22 +200,21 @@ void VS1053_spi_write_char(spi_device_handle_t ivsspi, uint8_t *cbyte, uint16_t 
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.tx_buffer = cbyte;
 	t.length = len * 8;
-	//t.rxlength=0;
-	while (VS1053_checkDREQ() == 0)
+
+	while (vscheckDREQ() == 0)
 		taskYIELD();
+
 	spi_take_semaphore(hsSPI);
-	//    ESP_ERROR_CHECK(spi_device_transmit(ivsspi, &t));  //Transmit!
 	ret = spi_device_transmit(ivsspi, &t); //Transmit!
 	if (ret != ESP_OK)
-		ESP_LOGE(TAG, "err: %d, VS1053_spi_write_char(len: %d)", ret, len);
+		ESP_LOGE(TAG, "err: %d, vsspi_write_char(len: %d)", ret, len);
 	spi_give_semaphore(hsSPI);
-	while (VS1053_checkDREQ() == 0)
-		;
-	//printf("VS1053_spi_write val: %x  rxlen: %x \n",*cbyte,t.rxlength);
-	// return ret;
+
+	while (vscheckDREQ() == 0)
+		taskYIELD();
 }
 
-void VS1053_WriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
+void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 {
 	spi_transaction_t t;
 	esp_err_t ret;
@@ -248,19 +229,20 @@ void VS1053_WriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	t.tx_data[0] = highbyte;
 	t.tx_data[1] = lowbyte;
 	t.length = 16;
-	while (VS1053_checkDREQ() == 0)
+	while (vscheckDREQ() == 0)
 		taskYIELD();
+
 	spi_take_semaphore(vsSPI);
-	//    ESP_ERROR_CHECK(spi_device_transmit(vsspi, &t));  //Transmit!
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
 	if (ret != ESP_OK)
-		ESP_LOGE(TAG, "err: %d, VS1053_WriteSci8(%d,%d,%d)", ret, addr, highbyte, lowbyte);
+		ESP_LOGE(TAG, "err: %d, vsWriteSci8(%d,%d,%d)", ret, addr, highbyte, lowbyte);
 	spi_give_semaphore(vsSPI);
-	while (VS1053_checkDREQ() == 0)
-		;
+
+	while (vscheckDREQ() == 0)
+		taskYIELD();
 }
 
-void VS1053_WriteSci(uint8_t addr, uint16_t value)
+void vsWriteSci(uint8_t addr, uint16_t value)
 {
 	spi_transaction_t t;
 	esp_err_t ret;
@@ -275,23 +257,26 @@ void VS1053_WriteSci(uint8_t addr, uint16_t value)
 	t.tx_data[0] = (value >> 8) & 0xff;
 	t.tx_data[1] = value & 0xff;
 	t.length = 16;
-	while (VS1053_checkDREQ() == 0)
+
+	while (vscheckDREQ() == 0)
 		taskYIELD();
+
 	spi_take_semaphore(vsSPI);
-	//    ESP_ERROR_CHECK(spi_device_transmit(vsspi, &t));  //Transmit!
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
 	if (ret != ESP_OK)
-		ESP_LOGE(TAG, "err: %d, VS1053_WriteSci(%d,%d)", ret, addr, value);
+		ESP_LOGE(TAG, "err: %d, vsWriteSci(%d,%d)", ret, addr, value);
 	spi_give_semaphore(vsSPI);
-	while (VS1053_checkDREQ() == 0)
-		;
+
+	while (vscheckDREQ() == 0)
+		taskYIELD();
 }
 
-uint16_t VS1053_ReadSci(uint8_t addressbyte)
+uint16_t vsReadSci(uint8_t addressbyte)
 {
 	uint16_t result;
 	spi_transaction_t t;
 	esp_err_t ret;
+
 	if (vsVersion == 0)
 		return 0;
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
@@ -299,27 +284,33 @@ uint16_t VS1053_ReadSci(uint8_t addressbyte)
 	t.flags |= SPI_TRANS_USE_RXDATA;
 	t.cmd = VS_READ_COMMAND;
 	t.addr = addressbyte;
-	while (VS1053_checkDREQ() == 0)
+
+	while (vscheckDREQ() == 0)
 		taskYIELD();
+
 	spi_take_semaphore(vsSPI);
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
 	if (ret != ESP_OK)
-		ESP_LOGE(TAG, "err: %d, VS1053_ReadSci(%d), read: %d", ret, addressbyte, (uint32_t)*t.rx_data);
+		ESP_LOGE(TAG, "err: %d, vsReadSci(%d), read: %d", ret, addressbyte, (uint32_t)*t.rx_data);
 	result = (((t.rx_data[0] & 0xFF) << 8) | ((t.rx_data[1]) & 0xFF));
-	//	ESP_LOGI(TAG,"VS1053_ReadSci data: %d %d %d %d",t.rx_data[0],t.rx_data[1],t.rx_data[2],t.rx_data[3]);
 	spi_give_semaphore(vsSPI);
-	while (VS1053_checkDREQ() == 0)
-		;
+
+	while (vscheckDREQ() == 0)
+		taskYIELD();
+
 	return result;
 }
 
-void VS1053_ResetChip()
+void vsResetChip()
 {
 	ControlReset(SET);
 	vTaskDelay(30);
 	ControlReset(RESET);
 	vTaskDelay(30);
-	if (VS1053_checkDREQ() == 1)
+	
+	vsDisableAnalog();
+
+	if (vscheckDREQ() == 1)
 		return;
 	vTaskDelay(20);
 }
@@ -329,116 +320,194 @@ uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)
 	return ((Source & Mask) >> Shift);
 }
 
-void VS1053_regtest()
-{
-	int MP3Status = VS1053_ReadSci(SPI_STATUSVS);
-	int MP3Mode = VS1053_ReadSci(SPI_MODE);
-	int MP3Clock = VS1053_ReadSci(SPI_CLOCKF);
-	ESP_LOGI(TAG, "SCI_Status  = 0x%X", MP3Status);
-	ESP_LOGI(TAG, "SCI_Mode (0x4800) = 0x%X", MP3Mode);
-	ESP_LOGI(TAG, "SCI_ClockF = 0x%X", MP3Clock);
-	ESP_LOGI(TAG, "VS Version (VS1053 is 4) = %d", vsVersion);
-	//The 1053B should respond with 4. VS1001 = 0, VS1011 = 1, VS1002 = 2, VS1003 = 3, VS1054 = 4
+/*
+  Read 16-bit value from addr.
+*/
+uint16_t ReadVS10xxMem(uint16_t addr) {
+  vsWriteSci(SCI_WRAMADDR, addr);
+  return vsReadSci(SCI_WRAM);
 }
 
-void VS1053_I2SRate(uint8_t speed)
+enum AudioFormat {
+  afUnknown,
+  afRiff,
+  afOggVorbis,
+  afMp1,
+  afMp2,
+  afMp3,
+  afAacMp4,
+  afAacAdts,
+  afAacAdif,
+  afFlac,
+  afWma,
+} audioFormat = afUnknown;
+
+const char *afName[] = {
+  "unknown",
+  "RIFF",
+  "Ogg",
+  "MP1",
+  "MP2",
+  "MP3",
+  "AAC MP4",
+  "AAC ADTS",
+  "AAC ADIF",
+  "FLAC",
+  "WMA",
+};
+
+void vsInfo()
+{
+     	int endFillBytes = SDI_END_FILL_BYTES;  // How many of those to send
+		static int vuMeter = 0;       // VU meter active
+	
+	    uint16_t sampleRate;
+        uint16_t hehtoBitsPerSec;
+        uint16_t h1 = vsReadSci(SCI_HDAT1);
+ 
+		if (h1 == 0x7665) {
+          audioFormat = afRiff;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if (h1 == 0x4154) {
+          audioFormat = afAacAdts;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if (h1 == 0x4144) {
+          audioFormat = afAacAdif;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if (h1 == 0x574d) {
+          audioFormat = afWma;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if (h1 == 0x4f67) {
+          audioFormat = afOggVorbis;
+          endFillBytes = SDI_END_FILL_BYTES_FLAC;
+        } else if (h1 == 0x664c) {
+          audioFormat = afFlac;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if (h1 == 0x4d34) {
+          audioFormat = afAacMp4;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if ((h1 & 0xFFE6) == 0xFFE2) {
+          audioFormat = afMp3;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if ((h1 & 0xFFE6) == 0xFFE4) {
+          audioFormat = afMp2;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else if ((h1 & 0xFFE6) == 0xFFE6) {
+          audioFormat = afMp1;
+          endFillBytes = SDI_END_FILL_BYTES;
+        } else {
+          audioFormat = afUnknown;
+          endFillBytes = SDI_END_FILL_BYTES_FLAC;
+        }
+
+        sampleRate = vsReadSci(SCI_AUDATA);
+        hehtoBitsPerSec = ReadVS10xxMem(PAR_BITRATE_PER_100);
+
+        ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s %04x ",
+               vsReadSci(SCI_DECODE_TIME),
+               hehtoBitsPerSec * 0.1,
+               sampleRate & 0xFFFE, (sampleRate & 1) ? "stereo" : "mono",
+               afName[audioFormat], h1
+               );
+          
+        if (vuMeter) {
+          int vu, l, r;
+          vu = ReadVS10xxMem(PAR_VU_METER);
+          l = vu >> 8;
+          r = vu & 0xFF;
+          ESP_LOGI(TAG, "%2d %2d ", l, r);
+        }
+} /* REPORT_ON_SCREEN */
+
+
+
+
+void vsregtest()
+{
+	int vsStatus = vsReadSci(SCI_STATUSVS);
+	int vsMode   = vsReadSci(SCI_MODE);
+	int vsClock  = vsReadSci(SCI_CLOCKF);
+	ESP_LOGI(TAG, "SCI_Status = 0x%X", vsStatus);
+	ESP_LOGI(TAG, "SCI_Mode (0x4800) = 0x%X", vsMode);
+	ESP_LOGI(TAG, "SCI_ClockF = 0x%X", vsClock);
+	ESP_LOGI(TAG, "VS10xx Version = %d", vsVersion);
+	//The 1053B should respond with 4. VS1001 = 0, VS1011 = 1, VS1002 = 2, VS1003 = 3, VS1054 = 4 VS1063 = 6
+}
+
+void vsI2SRate(uint8_t speed)
 { // 0 = 48kHz, 1 = 96kHz, 2 = 128kHz
 	if (speed > 2)
 		speed = 0;
 	if (vsVersion != 4)
 		return;
-	VS1053_WriteSci(SPI_WRAMADDR, 0xc040);	 //address of GPIO_ODATA is 0xC017
-	VS1053_WriteSci(SPI_WRAM, 0x0008 | speed); //
-	VS1053_WriteSci(SPI_WRAMADDR, 0xc040);	 //address of GPIO_ODATA is 0xC017
-	VS1053_WriteSci(SPI_WRAM, 0x000C | speed); //
+	vsWriteSci(SCI_WRAMADDR, 0xc040);	 //address of GPIO_ODATA is 0xC017
+	vsWriteSci(SCI_WRAM, 0x0008 | speed); //
+	vsWriteSci(SCI_WRAMADDR, 0xc040);	 //address of GPIO_ODATA is 0xC017
+	vsWriteSci(SCI_WRAM, 0x000C | speed); //
 	ESP_LOGI(TAG, "I2S Speed: %d", speed);
 }
-void VS1053_DisableAnalog()
+void vsDisableAnalog()
 {
 	// disable analog output
-	VS1053_WriteSci(SPI_VOL, 0xFFFF);
+	vsWriteSci(SCI_VOL, 0xFFFF);
 }
 
 // reduce the chip consumption
-void VS1053_LowPower()
+void vsLowPower()
 {
-	VS1053_WriteSci(SPI_CLOCKF, 0x0000); //
+	vsWriteSci(SCI_CLOCKF, 0x0000); //
 }
 
 // normal chip consumption
-void VS1053_HighPower()
+void vsHighPower()
 {
 	if (vsVersion == 4)								// only 1053
-		VS1053_WriteSci(SPI_CLOCKF, 0xB800); // SC_MULT = x1, SC_ADD= x1
+		vsWriteSci(SCI_CLOCKF, 0xB800); // SC_MULT = x1, SC_ADD= x1
 	else
-		VS1053_WriteSci(SPI_CLOCKF, 0xb000);
+		vsWriteSci(SCI_CLOCKF, 0xb000);
 }
 
-void VS1053_Start()
+/*--- Start Vs ----*/
+void vsStart()
 {
-	ControlReset(SET);
-	vTaskDelay(100);
-	ControlReset(RESET);
-	vTaskDelay(200);
-	//Check DREQ
-	if (VS1053_checkDREQ() == 0)
+	vsResetChip();
+
+	if (vscheckDREQ() == 0)
 	{
 		vsVersion = 0;
-		ESP_LOGE(TAG, "NO VS1053 detected");
+		ESP_LOGE(TAG, "NO VS10xx detected");
 		return;
 	}
 
-	VS1053_ResetChip();
 	// these 4 lines makes board to run on mp3 mode, no soldering required anymore
-	VS1053_WriteSci(SPI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
-	VS1053_WriteSci(SPI_WRAM, 0x0003);	 //GPIO_DDR=3
-	VS1053_WriteSci(SPI_WRAMADDR, 0xc019); //address of GPIO_ODATA is 0xC019
-	VS1053_WriteSci(SPI_WRAM, 0x0000);	 //GPIO_ODATA=0
+	vsWriteSci(SCI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
+	vsWriteSci(SCI_WRAM, 0x0003);	 //GPIO_DDR=3
+	vsWriteSci(SCI_WRAMADDR, 0xc019); //address of GPIO_ODATA is 0xC019
+	vsWriteSci(SCI_WRAM, 0x0000);	 //GPIO_ODATA=0
 	vTaskDelay(150);
 
-	int MP3Status = VS1053_ReadSci(SPI_STATUSVS);
-	vsVersion = (MP3Status >> 4) & 0x000F; //Mask out only the four version bits
+	int vsStatus = vsReadSci(SCI_STATUSVS);
+	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
 	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
 	//5 for VS1033, 7 for VS1103, and 6 for VS1063
-/*	int MP3Status = 0, cnt = 0;
-	while (vsVersion == -1 && cnt < 200)
-	{
-		MP3Status = VS1053_ReadSci(SPI_STATUSVS);
-		vsVersion = (MP3Status >> 4) & 0x000F; //Mask out only the four version bits
-											   //0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
-											   //5 for VS1033, 7 for VS1103, and 6 for VS1063
-		if (vsVersion == 0)
-		{
-			ESP_LOGE(TAG, "VS1053 vsVersion %d", vsVersion);
-			vsVersion = -1;
-			VS1053_SoftwareReset();
-		}
-		cnt++;
-	}
-
-	if (vsVersion > 0)
-*/
-	ESP_LOGI(TAG, "VS1053/VS1003 detected. MP3Status: %x, Version: %x", MP3Status, vsVersion);
+	
+	ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
 	if (vsVersion == 4)								// only 1053b
-													//		VS1053_WriteSci8(SPI_CLOCKF,0x78,0x00); // SC_MULT = x3, SC_ADD= x2
-//		VS1053_WriteSci(SPI_CLOCKF, 0xB800); // SC_MULT = x1, SC_ADD= x1
-		VS1053_WriteSci(SPI_CLOCKF, 0x8800); // SC_MULT = x3.5, SC_ADD= x1
-													//		VS1053_WriteSci8(SPI_CLOCKF,0x90,0x00); // SC_MULT = x3.5, SC_ADD= x1.5
+		vsWriteSci(SCI_CLOCKF, 0x8800);        // SC_MULT = x3.5, SC_ADD= x1
 	else
-		VS1053_WriteSci(SPI_CLOCKF, 0xB000);
+		vsWriteSci(SCI_CLOCKF, 0xB000);
 
-	//	VS1053_SoftwareReset();
-	while (VS1053_checkDREQ() == 0)
+	while (vscheckDREQ() == 0)
 		taskYIELD();
 
-	VS1053_regtest();
+	vsregtest();
 
 	// enable I2C dac output of the vs1053
-	if (vsVersion == 4 || vsVersion == 6) // only 1053
+	if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
 	{
-		VS1053_WriteSci(SPI_WRAMADDR, 0xc017); //
-		VS1053_WriteSci(SPI_WRAM, 0x00F0);	 //
-		VS1053_I2SRate(g_device->i2sspeed);
+		vsWriteSci(SCI_WRAMADDR, 0xc017); //
+		vsWriteSci(SCI_WRAM, 0x00F0);	 //
+		vsI2SRate(g_device->i2sspeed);
 
 		// plugin patch
 		if ((g_device->options & T_PATCH) == 0)
@@ -446,11 +515,11 @@ void VS1053_Start()
 			uint16_t len = 0;
 			if (vsVersion == 4) { // only 1053
 				len = sizeof(patch1053) / sizeof(patch1053[0]);
-					VS1053_LoadPlugin(patch1053, len);
+					vsLoadPlugin(patch1053, len);
 			}
 			if (vsVersion == 6){ // only 1063
 				len = sizeof(patch1063) / sizeof(patch1063[0]);
-				VS1053_LoadPlugin(patch1063, len);
+				vsLoadPlugin(patch1063, len);
 			}
 			ESP_LOGI(TAG, "VS10xx patch is loaded %d \n", len);
 		}
@@ -458,28 +527,28 @@ void VS1053_Start()
 	vTaskDelay(5);
 	ESP_LOGI(TAG,"volume: %d",g_device->vol);
 	setIvol( g_device->vol);
-	VS1053_SetVolume( g_device->vol);	
-	VS1053_SetTreble(g_device->treble);
-	VS1053_SetBass(g_device->bass);
-	VS1053_SetTrebleFreq(g_device->freqtreble);
-	VS1053_SetBassFreq(g_device->freqbass);
-	VS1053_SetSpatial(g_device->spacial);
+	vsSetVolume( g_device->vol);	
+	vsSetTreble(g_device->treble);
+	vsSetBass(g_device->bass);
+	vsSetTrebleFreq(g_device->freqtreble);
+	vsSetBassFreq(g_device->freqbass);
+	vsSetSpatial(g_device->spacial);
 }
 
-int VS1053_SendMusicBytes(uint8_t *music, uint16_t quantity)
+int vsSendMusicBytes(uint8_t *music, uint16_t quantity)
 {
 	if (quantity == 0)
 		return 0;
 	int oo = 0;
-	//	while(VS1053_checkDREQ() == 0);taskYIELD ();
+	//	while(vscheckDREQ() == 0);taskYIELD ();
 	while (quantity)
 	{
-		//		if(VS1053_checkDREQ())
+		//		if(vscheckDREQ())
 		{
 			int t = quantity;
 			if (t > CHUNK)
 				t = CHUNK;
-			VS1053_spi_write_char(hvsspi, &music[oo], t);
+			vsWriteScichar(hvsspi, &music[oo], t);
 			oo += t;
 			quantity -= t;
 		} // else taskYIELD ();
@@ -487,36 +556,17 @@ int VS1053_SendMusicBytes(uint8_t *music, uint16_t quantity)
 	return oo;
 }
 
-void VS1053_SoftwareReset()
+void vsSoftwareReset()
 {
-	VS1053_WriteSci8(SPI_MODE, (SM_SDINEW | SM_LINE1) >> 8, SM_RESET);
-	VS1053_WriteSci8(SPI_MODE, (SM_SDINEW | SM_LINE1) >> 8, SM_LAYER12); //mode
+	vsWriteSci8(SCI_MODE, (SM_SDINEW | SM_LINE1) >> 8, SM_RESET);
+	vsWriteSci8(SCI_MODE, (SM_SDINEW | SM_LINE1) >> 8, SM_LAYER12); //mode
 }
-
-// activate or stop admix plugin (true = activate)
-/*
-void VS1053_Admix(bool val) {
-	uint16_t Mode = VS1053_ReadSci(SPI_MODE);
-	VS1053_WriteSci8(SPI_MODE, MaskAndShiftRight(Mode|SM_LINE1,0xFF00,8), (Mode & 0x00FF));
-	if (val) 
-		VS1053_WriteSci(SPI_AIADDR,0x0F00);
-	else
-		VS1053_WriteSci(SPI_AIADDR,0x0F01);
-}
-
-// Set the volume of the line1 (for admix plugin) // -31 to -3
-void VS1053_SetVolumeLine(int16_t vol){
-	if (vol > -3) vol = -3;
-	if (vol < -31) vol = -31;
-	VS1053_WriteSci8(SPI_AICTRL0,(vol&0xFF00)>>8,vol&0xFF);
-}
-*/
 
 // Get volume and convert it in log one
-uint8_t VS1053_GetVolume()
+uint8_t vsGetVolume()
 {
 	uint8_t i, j;
-	uint8_t value = VS1053_ReadSci(SPI_VOL) & 0x00FF;
+	uint8_t value = vsReadSci(SCI_VOL) & 0x00FF;
 	for (i = 0; i < 255; i++)
 	{
 		j = (log10(255 / ((float)i + 1)) * 105.54571334); // magic no?
@@ -528,9 +578,9 @@ uint8_t VS1053_GetVolume()
 }
 
 // rough volume
-uint8_t VS1053_GetVolumeLinear()
+uint8_t vsGetVolumeLinear()
 {
-	return VS1053_ReadSci(SPI_VOL) & 0x00FF;
+	return vsReadSci(SCI_VOL) & 0x00FF;
 }
 
 /**
@@ -539,14 +589,14 @@ uint8_t VS1053_GetVolumeLinear()
  * 		of 0.5dB. Maximum volume is 0 and silence is 0xFEFE.
  * convert the log one to rough one and set it invs1053
  */
-void VS1053_SetVolume(uint8_t xMinusHalfdB)
+void vsSetVolume(uint8_t xMinusHalfdB)
 {
 	uint8_t value = (log10(255 / ((float)xMinusHalfdB + 1)) * 105.54571334);
 	//printf("setvol: %d\n",value);
 	if (value == 255)
 		value = 254;
 	//printf("xMinusHalfdB=%d  value=%d\n",xMinusHalfdB,value);
-	VS1053_WriteSci8(SPI_VOL, value, value);
+	vsWriteSci8(SCI_VOL, value, value);
 }
 
 /**
@@ -554,9 +604,9 @@ void VS1053_SetVolume(uint8_t xMinusHalfdB)
  * @return Returned value describes enhancement in multiplies
  * 		of 1.5dB. 0 value means no enhancement, 8 max (12dB).
  */
-int8_t VS1053_GetTreble()
+int8_t vsGetTreble()
 {
-	int8_t treble = (VS1053_ReadSci(SPI_BASS) & 0xF000) >> 12;
+	int8_t treble = (vsReadSci(SCI_BASS) & 0xF000) >> 12;
 	if ((treble & 0x08))
 		treble |= 0xF0; // negative value
 	return (treble);
@@ -570,12 +620,12 @@ int8_t VS1053_GetTreble()
  * 		of 1.5dB. 0 - no enhancement, -8 minimum -12dB , 7 - maximum, 10.5dB.
  * @return void
  */
-void VS1053_SetTreble(int8_t xOneAndHalfdB)
+void vsSetTreble(int8_t xOneAndHalfdB)
 {
-	uint16_t bassReg = VS1053_ReadSci(SPI_BASS);
+	uint16_t bassReg = vsReadSci(SCI_BASS);
 
 	if ((xOneAndHalfdB <= 7) && (xOneAndHalfdB >= -8))
-		VS1053_WriteSci8(SPI_BASS, MaskAndShiftRight(bassReg, 0x0F00, 8) | (xOneAndHalfdB << 4), bassReg & 0x00FF);
+		vsWriteSci8(SCI_BASS, MaskAndShiftRight(bassReg, 0x0F00, 8) | (xOneAndHalfdB << 4), bassReg & 0x00FF);
 }
 
 /**
@@ -585,24 +635,24 @@ void VS1053_SetTreble(int8_t xOneAndHalfdB)
  * 		Values from 0 to 15 (in kHz)
  * @return void
  */
-void VS1053_SetTrebleFreq(uint8_t xkHz)
+void vsSetTrebleFreq(uint8_t xkHz)
 {
-	uint16_t bassReg = VS1053_ReadSci(SPI_BASS);
+	uint16_t bassReg = vsReadSci(SCI_BASS);
 	if (xkHz <= 15)
-		VS1053_WriteSci8(SPI_BASS, MaskAndShiftRight(bassReg, 0xF000, 8) | xkHz, bassReg & 0x00FF);
+		vsWriteSci8(SCI_BASS, MaskAndShiftRight(bassReg, 0xF000, 8) | xkHz, bassReg & 0x00FF);
 }
-int8_t VS1053_GetTrebleFreq()
+int8_t vsGetTrebleFreq()
 {
-	return ((VS1053_ReadSci(SPI_BASS) & 0x0F00) >> 8);
+	return ((vsReadSci(SCI_BASS) & 0x0F00) >> 8);
 }
 
 /**
  * Returns level of bass boost in dB.
  * @return Value of bass enhancement from 0 (off) to 15(dB).
  */
-uint8_t VS1053_GetBass()
+uint8_t vsGetBass()
 {
-	return ((VS1053_ReadSci(SPI_BASS) & 0x00F0) >> 4);
+	return ((vsReadSci(SCI_BASS) & 0x00F0) >> 4);
 }
 
 /**
@@ -611,13 +661,13 @@ uint8_t VS1053_GetBass()
  * @param xdB Value of bass enhancement from 0 (off) to 15(dB).
  * @return void
  */
-void VS1053_SetBass(uint8_t xdB)
+void vsSetBass(uint8_t xdB)
 {
-	uint16_t bassReg = VS1053_ReadSci(SPI_BASS);
+	uint16_t bassReg = vsReadSci(SCI_BASS);
 	if (xdB <= 15)
-		VS1053_WriteSci8(SPI_BASS, (bassReg & 0xFF00) >> 8, (bassReg & 0x000F) | (xdB << 4));
+		vsWriteSci8(SCI_BASS, (bassReg & 0xFF00) >> 8, (bassReg & 0x000F) | (xdB << 4));
 	else
-		VS1053_WriteSci8(SPI_BASS, (bassReg & 0xFF00) >> 8, (bassReg & 0x000F) | 0xF0);
+		vsWriteSci8(SCI_BASS, (bassReg & 0xFF00) >> 8, (bassReg & 0x000F) | 0xF0);
 }
 
 /**
@@ -627,47 +677,47 @@ void VS1053_SetBass(uint8_t xdB)
  * 		Values from 2 to 15 ( equal to 20 - 150 Hz).
  * @return void
  */
-void VS1053_SetBassFreq(uint8_t xTenHz)
+void vsSetBassFreq(uint8_t xTenHz)
 {
-	uint16_t bassReg = VS1053_ReadSci(SPI_BASS);
+	uint16_t bassReg = vsReadSci(SCI_BASS);
 	if (xTenHz >= 2 && xTenHz <= 15)
-		VS1053_WriteSci8(SPI_BASS, MaskAndShiftRight(bassReg, 0xFF00, 8), (bassReg & 0x00F0) | xTenHz);
+		vsWriteSci8(SCI_BASS, MaskAndShiftRight(bassReg, 0xFF00, 8), (bassReg & 0x00F0) | xTenHz);
 }
 
-uint8_t VS1053_GetBassFreq()
+uint8_t vsGetBassFreq()
 {
-	return ((VS1053_ReadSci(SPI_BASS) & 0x000F));
+	return ((vsReadSci(SCI_BASS) & 0x000F));
 }
 
-uint8_t VS1053_GetSpatial()
+uint8_t vsGetSpatial()
 {
 	if (vsVersion != 4)
 		return 0;
-	uint16_t spatial = (VS1053_ReadSci(SPI_MODE) & 0x0090) >> 4;
+	uint16_t spatial = (vsReadSci(SCI_MODE) & 0x0090) >> 4;
 	return ((spatial & 1) | ((spatial >> 2) & 2));
 }
 
-void VS1053_SetSpatial(uint8_t num)
+void vsSetSpatial(uint8_t num)
 {
 	if (vsVersion != 4)
 		return;
-	uint16_t spatial = VS1053_ReadSci(SPI_MODE);
+	uint16_t spatial = vsReadSci(SCI_MODE);
 	if (num <= 3)
 	{
 		num = (((num << 2) & 8) | (num & 1)) << 4;
-		VS1053_WriteSci8(SPI_MODE, MaskAndShiftRight(spatial, 0xFF00, 8), (spatial & 0x006F) | num);
+		vsWriteSci8(SCI_MODE, MaskAndShiftRight(spatial, 0xFF00, 8), (spatial & 0x006F) | num);
 	}
 }
 
-uint16_t VS1053_GetDecodeTime()
+uint16_t vsGetDecodeTime()
 {
-	return VS1053_ReadSci(SPI_DECODE_TIME);
+	return vsReadSci(SCI_DECODE_TIME);
 }
 
-uint16_t VS1053_GetBitrate()
+uint16_t vsGetBitrate()
 {
-	uint16_t bitrate = (VS1053_ReadSci(SPI_HDAT0) & 0xf000) >> 12;
-	uint8_t ID = (VS1053_ReadSci(SPI_HDAT1) & 0x18) >> 3;
+	uint16_t bitrate = (vsReadSci(SCI_HDAT0) & 0xf000) >> 12;
+	uint8_t ID = (vsReadSci(SCI_HDAT1) & 0x18) >> 3;
 	uint16_t res;
 	if (ID == 3)
 	{
@@ -711,58 +761,57 @@ uint16_t VS1053_GetBitrate()
 	return res;
 }
 
-uint16_t VS1053_GetSampleRate()
+uint16_t vsGetSampleRate()
 {
-	return (VS1053_ReadSci(SPI_AUDATA) & 0xFFFE);
+	return (vsReadSci(SCI_AUDATA) & 0xFFFE);
 }
 
 /* to start and stop a new stream */
-void VS1053_flush_cancel(uint8_t mode)
+void vsflush_cancel(uint8_t mode)
 {   // 0 only fillbyte  1 before play    2 cancel play
-	//  int8_t endFillByte = (int8_t) (Mp3ReadWRAM(para_endFillByte) & 0xFF);
 	int8_t endFillByte;
 	int16_t y;
 	uint8_t buf[513];
 	if (mode != 2)
 	{
-		VS1053_WriteSci8(SPI_WRAMADDR, MaskAndShiftRight(para_endFillByte, 0xFF00, 8), (para_endFillByte & 0x00FF));
-		endFillByte = (int8_t)VS1053_ReadSci(SPI_WRAM) & 0xFF;
+		vsWriteSci8(SCI_WRAMADDR, MaskAndShiftRight(para_endFillByte, 0xFF00, 8), (para_endFillByte & 0x00FF));
+		endFillByte = (int8_t)vsReadSci(SCI_WRAM) & 0xFF;
 		for (y = 0; y < 513; y++)
 			buf[y] = endFillByte;
 	}
 
 	if (mode != 0) //set CANCEL
 	{
-		uint16_t spimode = VS1053_ReadSci(SPI_MODE) | SM_CANCEL;
+		uint16_t spimode = vsReadSci(SCI_MODE) | SM_CANCEL;
 		// set CANCEL
-		VS1053_WriteSci8(SPI_MODE, MaskAndShiftRight(spimode, 0xFF00, 8), (spimode & 0x00FF));
+		vsWriteSci8(SCI_MODE, MaskAndShiftRight(spimode, 0xFF00, 8), (spimode & 0x00FF));
 		// wait CANCEL
 		y = 0;
-		while (VS1053_ReadSci(SPI_MODE) & SM_CANCEL)
+		while (vsReadSci(SCI_MODE) & SM_CANCEL)
 		{
 			if (mode == 1)
-				VS1053_SendMusicBytes(buf, CHUNK); //1
+				vsSendMusicBytes(buf, CHUNK); //1
 			else
 				vTaskDelay(1); //2
 							   //		printf ("Wait CANCEL clear\n");
 			if (y++ > 200)
 			{
 				if (mode == 1)
-					VS1053_Start();
+					vsStart();
 				break;
 			}
 		}
-		VS1053_WriteSci8(SPI_WRAMADDR, MaskAndShiftRight(para_endFillByte, 0xFF00, 8), (para_endFillByte & 0x00FF));
-		endFillByte = (int8_t)VS1053_ReadSci(SPI_WRAM) & 0xFF;
+		vsWriteSci8(SCI_WRAMADDR, MaskAndShiftRight(para_endFillByte, 0xFF00, 8), (para_endFillByte & 0x00FF));
+		endFillByte = (int8_t)vsReadSci(SCI_WRAM) & 0xFF;
 		for (y = 0; y < 513; y++)
 			buf[y] = endFillByte;
 		for (y = 0; y < 5; y++)
-			VS1053_SendMusicBytes(buf, 512); // 4*513 = 2052
+			vsSendMusicBytes(buf, 512); // 4*513 = 2052
 	}
 	else
 	{
 		for (y = 0; y < 5; y++)
-			VS1053_SendMusicBytes(buf, 512); // 4*513 = 2052
+			vsSendMusicBytes(buf, 512); // 4*513 = 2052
 	}
 }
 
@@ -778,16 +827,6 @@ void vsTask(void *pvParams)
 
 	while (player->decoder_command != CMD_STOP)
 	{
-		// stop requested, terminate immediately
-		
-		//size = bufferRead(b, VSTASKBUF);
-		/*		if (size > 	VSTASKBUF)
-		{
-			ESP_LOGE(TAG, "Decoder vs1053 size: %d, fsize: %d, VSTASKBUF: %d .\n",size,fsize,VSTASKBUF );	
-			size = 	VSTASKBUF;
-		}
-		*/
-
 		size = min(VSTASKBUF, spiRamFifoFill());
 
 		if (size > 0)
@@ -796,12 +835,13 @@ void vsTask(void *pvParams)
 			s = 0;
 			while (s < size)
 			{
-				s += VS1053_SendMusicBytes(b + s, size - s);
+				s += vsSendMusicBytes(b + s, size - s);
 			}
 		}
 		else
 		{
 			ESP_LOGE(TAG, "Music buffer is emty - Nothing playing :(");
+			vTaskDelay(10);
 		}
 		
 		vTaskDelay(2);
@@ -810,7 +850,7 @@ void vsTask(void *pvParams)
 	spiRamFifoReset();
 	player->decoder_status = STOPPED;
 	player->decoder_command = CMD_NONE;
-	ESP_LOGD(TAG, "Decoder vs1053 stopped.\n");
+	ESP_LOGD(TAG, "Decoder vs10xx stopped.\n");
 	uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
 	ESP_LOGI(TAG, "watermark: %x  %d", uxHighWaterMark, uxHighWaterMark);
 	vTaskDelete(NULL);

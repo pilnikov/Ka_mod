@@ -38,12 +38,12 @@ static int start_decoder_task(player_t* player)
 	int priority = PRIO_MAD;
 
 	ESP_LOGD(TAG, "RAM left %d", esp_get_free_heap_size());
-	if (get_audio_output_mode() == VS1053)
+	if (get_audio_output_mode() == VS10xx)
 	{
 		task_func = vsTask;
 		task_name = (char*)"vsTask";
 		stack_depth = 3000;
-		priority = PRIO_VS1053;
+		priority = PRIO_VS10xx;
 	}
 	else
 		switch (player->media_stream->content_type)
@@ -176,13 +176,13 @@ void audio_player_init(player_t* player)
 
 void audio_player_destroy()
 {
-	if (get_audio_output_mode() != VS1053) renderer_destroy();
+	if (get_audio_output_mode() != VS10xx) renderer_destroy();
 	player_status = UNINITIALIZED;
 }
 
 void audio_player_start()
 {
-	if (get_audio_output_mode() != VS1053) renderer_start();
+	if (get_audio_output_mode() != VS10xx) renderer_start();
 	player_instance->media_stream->eof = false;
 	player_instance->command = CMD_START;
 	player_instance->decoder_command = CMD_NONE;
@@ -194,7 +194,7 @@ void audio_player_stop()
 	player_instance->decoder_command = CMD_STOP;
 	player_instance->command = CMD_STOP;
 	player_instance->media_stream->eof = true;
-	if (get_audio_output_mode() != VS1053)renderer_stop();
+	if (get_audio_output_mode() != VS10xx)renderer_stop();
 	player_instance->command = CMD_NONE;
 	player_status = STOPPED;
 

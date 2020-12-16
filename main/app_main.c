@@ -320,10 +320,11 @@ uint32_t checkUart(uint32_t speed)
 *******************************************************************************/
 static void init_vs_hw()
 {
-	if (VS1053_HW_init()) // init spi
-		VS1053_Start();
-
-	ESP_LOGI(TAG, "VS HW initialized");
+	if (vsHW_init()) // init spi
+		{
+			vsStart();
+			ESP_LOGI(TAG, "vsHW initialized");
+		}
 }
 
 /* event handler for pre-defined wifi events */
@@ -848,10 +849,10 @@ void autoPlay()
 	else
 	{
 		clientSaveOneHeader(apmode, strlen(apmode), METANAME);
-		if ((audio_output_mode == VS1053) && (getVsVersion() < 3))
+		if ((audio_output_mode == VS10xx) && (get_vsVersion() < 3))
 		{
-			clientSaveOneHeader("Invalid audio output. VS1053 not found", 38, METAGENRE);
-			ESP_LOGE(TAG, "Invalid audio output. VS1053 not found");
+			clientSaveOneHeader("Invalid audio output. VS10xx not found", 38, METAGENRE);
+			ESP_LOGE(TAG, "Invalid audio output. VS10xx not found");
 			vTaskDelay(200);
 		}
 
@@ -992,7 +993,7 @@ void app_main()
 	}
 	else
 	{
-		if (audio_output_mode == VS1053)
+		if (audio_output_mode == VS10xx)
 			setSPIRAMSIZE(50 * 1024); // more free heap
 		ESP_LOGI(TAG, "Set Song buffer to 50k");
 	}

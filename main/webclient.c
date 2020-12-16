@@ -1125,9 +1125,6 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 		clen = len;
 		if ((header.members.single.metaint != 0) && (clen > metad))
 		{
-			//			ESP_LOGD(TAG,"clientReceiveCallback: pdata: %x, pdataend: %x, len: %d",(int)pdata,(int)pdata+len,len);
-
-			//			ESP_LOGD(TAG,"metain len:%d, clen:%d, metad:%d, l:%d, inpdata:%x, rest:%d\n",len,clen,metad, l,(int)inpdata,rest );
 			int jj = 0;
 			while ((clen > metad) && (header.members.single.metaint != 0)) // in buffer
 			{
@@ -1135,10 +1132,6 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				jj++;
 				l = inpdata[metad] * 16; //new meta length
 				rest = clen - metad - l - 1;
-
-				//if (l ==0){
-				//	printf("mt len:%d, clen:%d, metad:%d,&l:%x, l:%d, rest:%d\n",len,clen,metad,inpdata+metad, l,rest );
-				//if (l > 80) dump(inpdata,len);
 
 				if (l != 0)
 				{
@@ -1181,24 +1174,20 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				metad = header.members.single.metaint - rest; //until next
 				if (rest > 0)
 				{
-					//					if (spiRamFifoFree() < rest) ESP_LOGV(TAG,"metaout wait rest: %d, bufferfree: %d",rest,spiRamFifoFree());
 					while (spiRamFifoFree() < rest) // wait some room
 						vTaskDelay(20);				//
 					audio_stream_consumer((char*)inpdata, rest, (void*)player_config); //write stream data in bufer 
 				}
 				rest = 0;
 			}
-			//ESP_LOGD(TAG,"metaout len:%d, clen:%d, metad:%d, l:%d, inpdata:%x, rest:%d",len,clen,metad, l,(int)inpdata,rest );
 		}
 		else
 		{
 
 			if (header.members.single.metaint != 0)
 				metad -= len;
-			//printf("out len = %d, metad = %d  metaint= %d, rest:%d\n",len,metad,header.members.single.metaint,rest);
 			if (len > 0)
 			{
-				//				if (spiRamFifoFree() < len) ESP_LOGV(TAG,"metaout wait len: %d, bufferfree: %d",len,spiRamFifoFree());
 				while (spiRamFifoFree() < len) // wait some room
 					vTaskDelay(20);
 				audio_stream_consumer((char*)(pdata + rest), len, (void*)player_config); //write stream data in bufer 
@@ -1219,6 +1208,8 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 			if (!ledStatus)
 				if (getLedGpio() != GPIO_NONE)
 					gpio_set_level(getLedGpio(), true ^ ledPolarity);
+			if (get_audio_output_mode() == VS10xx)
+				vsInfo();
 		}
 	}
 }
@@ -1238,7 +1229,7 @@ void clientTask(void* pvParams)
 
 	struct sockaddr_in dest;
 
-	vTaskDelay(300);
+	vTaskDelay(30);
 
 	strcpy(useragent, g_device->ua);
 	if (strlen(useragent) == 0)
@@ -1256,8 +1247,6 @@ void clientTask(void* pvParams)
 		xSemaphoreGive(sConnected);
 		if (xSemaphoreTake(sConnect, portMAX_DELAY))
 		{
-
-			//VS1053_HighPower();
 			xSemaphoreTake(sDisconnect, 0);
 			sockfd = socket(AF_INET, SOCK_STREAM, 0);
 			sterr = lwip_strerr(errno);
@@ -1303,7 +1292,6 @@ void clientTask(void* pvParams)
 					//printf("sprint%d\n",7);
 					sprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
 				}
-				//printf("st:%d, Client Sent:\n%s\n",cstatus,bufrec);
 				xSemaphoreTake(sConnected, 0);
 
 				kprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
@@ -1324,9 +1312,6 @@ void clientTask(void* pvParams)
 						if (errno == 11)
 							bytes_read = 0;
 					}
-					//if (bytes_read < 1000 )
-					//	printf("Rec:%d\n%s\n",bytes_read,bufrec);
-					//	printf(" %d ",bytes_read);	fflush(stdout);
 					if (bytes_read > 0)
 					{
 						cnterror = 0;
@@ -1415,22 +1400,21 @@ void clientTask(void* pvParams)
 				if (get_player_status() != STOPPED)
 					audio_player_stop();
 
-				//if (get_audio_output_mode() == VS1053) spiRamFifoReset();
 				player_config->media_stream->eof = true;
-				//				bufferReset();
-				if (get_audio_output_mode() == VS1053)
-					VS1053_flush_cancel(2);
+			
+				if (get_audio_output_mode() == VS10xx)
+					vsflush_cancel(2);
+				
 				playing = 0;
 				vTaskDelay(40); // stop without click
-				//VS1053_LowPower();
+			
 				setVolumei(getVolume());
 			}
 
-			//			bufferReset();
 			shutdown(sockfd, SHUT_RDWR); // stop the socket
 			vTaskDelay(1);
 			close(sockfd);
-			//printf("WebClient Socket closed\n");
+
 			if (cstatus == C_PLAYLIST)
 			{
 				clientConnect();

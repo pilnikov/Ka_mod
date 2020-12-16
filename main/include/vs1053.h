@@ -8,11 +8,26 @@
  *		Author: KaraWin
  */
 #pragma once
-#ifndef VS1053_H_
-#define VS1053_H_
+#ifndef vsH_
+#define vsH_
 
 #include "esp_system.h"
 #include "interface.h"
+#include "gpio.h"
+#include "eeprom.h"
+#include <string.h>
+#include "driver/spi_master.h"
+#include "soc/gpio_struct.h"
+#include "driver/gpio.h"
+#include <math.h>
+#include "app_main.h"
+#include "interface.h"
+#include "audio_player.h"
+#include "spiram_fifo.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+
 #define min(a, b) (((a) < (b)) ? (a) : (b))
 #define SET 0
 #define RESET 1
@@ -26,22 +41,22 @@
 
 #define VS_WRITE_COMMAND 	0x02
 #define VS_READ_COMMAND 	0x03
-#define SPI_MODE        	0x00
-#define SPI_STATUSVS      	0x01
-#define SPI_BASS        	0x02
-#define SPI_CLOCKF      	0x03
-#define SPI_DECODE_TIME 	0x04
-#define SPI_AUDATA      	0x05
-#define SPI_WRAM        	0x06
-#define SPI_WRAMADDR    	0x07
-#define SPI_HDAT0       	0x08
-#define SPI_HDAT1       	0x09
-#define SPI_AIADDR      	0x0a
-#define SPI_VOL         	0x0b
-#define SPI_AICTRL0     	0x0c
-#define SPI_AICTRL1     	0x0d
-#define SPI_AICTRL2     	0x0e
-#define SPI_AICTRL3     	0x0f
+#define SCI_MODE        	0x00
+#define SCI_STATUSVS      	0x01
+#define SCI_BASS        	0x02
+#define SCI_CLOCKF      	0x03
+#define SCI_DECODE_TIME 	0x04
+#define SCI_AUDATA      	0x05
+#define SCI_WRAM        	0x06
+#define SCI_WRAMADDR    	0x07
+#define SCI_HDAT0       	0x08
+#define SCI_HDAT1       	0x09
+#define SCI_AIADDR      	0x0a
+#define SCI_VOL         	0x0b
+#define SCI_AICTRL0     	0x0c
+#define SCI_AICTRL1     	0x0d
+#define SCI_AICTRL2     	0x0e
+#define SCI_AICTRL3     	0x0f
 #define SM_DIFF         	0x01
 #define SM_JUMP         	0x02
 #define SM_LAYER12			0x02
@@ -60,78 +75,66 @@
 #define SM_ADPCM_HP     	0x2000
 #define SM_LINE1            0x4000
 #define para_endFillByte    0x1E06
+
+
 //public functions
-//extern int vsVersion;
-int getVsVersion();
-bool 	VS1053_HW_init();
-void 	VS1053_SineTest();
-void 	VS1053_I2SRATE(uint8_t speed);
-void	VS1053_Start();
-void	VS1053_I2SRate(uint8_t speed);
-//void 	VS1053_SendMusicBytes(uint8_t* music,int quantity);
-int 	VS1053_SendMusicBytes(uint8_t* music,uint16_t quantity);
-void 	VS1053_SoftwareReset();
-uint16_t	VS1053_GetBitrate();
-uint16_t	VS1053_GetSampleRate();
-uint16_t	VS1053_GetDecodeTime();
-void	VS1053_flush_cancel(uint8_t mode);// 0 only fillbyte  1 before play    2 close play
+
 void Spi_init();
-// admix plugin control
-void VS1053_SetVolumeLine(int16_t vol);
-void VS1053_Admix(bool val);
+
+int     get_vsVersion();
+bool 	vsHW_init();
+void 	vsI2SRATE(uint8_t speed);
+void    vsInfo();
+void	vsStart();
+void	vsI2SRate(uint8_t speed);
+int 	vsSendMusicBytes(uint8_t* music,uint16_t quantity);
+void 	vsSoftwareReset();
+uint16_t	vsGetBitrate();
+uint16_t	vsGetSampleRate();
+uint16_t	vsGetDecodeTime();
+void	vsflush_cancel(uint8_t mode);// 0 only fillbyte  1 before play    2 close play
 
 //Volume control
-void VS1053_DisableAnalog(void);
-uint8_t 	VS1053_GetVolume();
-uint8_t 	VS1053_GetVolumeLinear();
-void	VS1053_SetVolume(uint8_t xMinusHalfdB);
-void 	VS1053_VolumeUp(uint8_t xHalfdB);
-void	VS1053_VolumeDown(uint8_t xHalfdB);
+void	vsDisableAnalog(void);
+uint8_t vsGetVolume();
+uint8_t vsGetVolumeLinear();
+void	vsSetVolume(uint8_t xMinusHalfdB);
+void 	vsVolumeUp(uint8_t xHalfdB);
+void	vsVolumeDown(uint8_t xHalfdB);
 //Treble control
-int8_t	VS1053_GetTreble();
-void	VS1053_SetTreble(int8_t xOneAndHalfdB);
-void	VS1053_TrebleUp(uint8_t xOneAndHalfdB);
-void	VS1053_TrebleDown(uint8_t xOneAndHalfdB);
-void	VS1053_SetTrebleFreq(uint8_t xkHz);
-int8_t	VS1053_GetTrebleFreq(void);
+int8_t	vsGetTreble();
+void	vsSetTreble(int8_t xOneAndHalfdB);
+void	vsSetTrebleFreq(uint8_t xkHz);
+int8_t	vsGetTrebleFreq(void);
 //Bass control
-uint8_t	VS1053_GetBass();
-void	VS1053_SetBass(uint8_t xdB);
-void	VS1053_BassUp(uint8_t xdB);
-void	VS1053_BassDown(uint8_t xdB);
-void	VS1053_SetBassFreq(uint8_t xTenHz);
-uint8_t	VS1053_GetBassFreq(void);
+uint8_t	vsGetBass();
+void	vsSetBass(uint8_t xdB);
+void	vsSetBassFreq(uint8_t xTenHz);
+uint8_t	vsGetBassFreq(void);
 // Spacial
-uint8_t	VS1053_GetSpatial();
-void VS1053_SetSpatial(uint8_t num);
+uint8_t	vsGetSpatial();
+void vsSetSpatial(uint8_t num);
 // reduce the chip consumption
-void VS1053_LowPower();
+void vsLowPower();
 // normal chip consumption
-void VS1053_HighPower();
+void vsHighPower();
 //private functions
-void SPIPutChar(uint8_t outB);
-uint8_t SPIGetChar();
-void Delay(uint32_t nTime);
 void ControlReset(uint8_t State);
-void SCI_ChipSelect(uint8_t State);
-void SDI_ChipSelect(uint8_t State);
-void VS1053_WriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte);
-void VS1053_WriteSci(uint8_t addr, uint16_t value);
-uint16_t VS1053_ReadSci(uint8_t addr);
-void VS1053_ResetChip();
+void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte);
+void vsWriteSci(uint8_t addr, uint16_t value);
+void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t *cbyte, uint16_t len);
+uint16_t vsReadSci(uint8_t addr);
+void vsResetChip();
 
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift);
 
-uint8_t VS1053_checkWREQ();
+uint8_t vscheckDREQ();
 
-void VS1053_regtest();
-void VS1053_sine(char pitch);
-void VS1053_SPI_SpeedUp();
-void VS1053_SPI_SpeedDown();
-void VS1053_LoadPlugin(const uint16_t *d, uint16_t len);
+void vsregtest();
+void vsLoadPlugin(const uint16_t *d, uint16_t len);
 
-//void VS1053_PluginLoad();
+//void vsPluginLoad();
 
 void vsTask(void *pvParams) ;
 
-#endif /* VS1053_H_ */
+#endif /* vsH_ */

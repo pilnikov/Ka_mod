@@ -276,8 +276,8 @@ void setVolumei(int16_t vol)
 		vol = 254;
 	if (vol < 0)
 		vol = 1;
-	if (get_audio_output_mode() == VS1053)
-		VS1053_SetVolume(vol);
+	if (get_audio_output_mode() == VS10xx)
+		vsSetVolume(vol);
 	if (vol < 3)
 		vol--;
 	renderer_volume(vol + 2, get_audio_output_mode()); // max 256
@@ -293,8 +293,8 @@ void setVolume(char *vol)
 		uvol = 1;
 	if (vol != NULL)
 	{
-		if (get_audio_output_mode() == VS1053)
-			VS1053_SetVolume(uvol);
+		if (get_audio_output_mode() == VS10xx)
+			vsSetVolume(uvol);
 		if (uvol < 3)
 			uvol--;
 		renderer_volume(uvol + 2, get_audio_output_mode()); // max 256
@@ -571,7 +571,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 	}
 	else if (strcmp(name, "/sound") == 0)
 	{
-		if (get_audio_output_mode() == VS1053 && data_size > 0)
+		if (get_audio_output_mode() == VS10xx && data_size > 0)
 		{
 			char bass[6];
 			char treble[6];
@@ -584,7 +584,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			{
 				if (g_device->bass != atoi(bass))
 				{
-					VS1053_SetBass(atoi(bass));
+					vsSetBass(atoi(bass));
 					changed = true;
 					g_device->bass = atoi(bass);
 				}
@@ -593,7 +593,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			{
 				if (g_device->treble != atoi(treble))
 				{
-					VS1053_SetTreble(atoi(treble));
+					vsSetTreble(atoi(treble));
 					changed = true;
 					g_device->treble = atoi(treble);
 				}
@@ -602,7 +602,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			{
 				if (g_device->freqbass != atoi(bassfreq))
 				{
-					VS1053_SetBassFreq(atoi(bassfreq));
+					vsSetBassFreq(atoi(bassfreq));
 					changed = true;
 					g_device->freqbass = atoi(bassfreq);
 				}
@@ -611,7 +611,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			{
 				if (g_device->freqtreble != atoi(treblefreq))
 				{
-					VS1053_SetTrebleFreq(atoi(treblefreq));
+					vsSetTrebleFreq(atoi(treblefreq));
 					changed = true;
 					g_device->freqtreble = atoi(treblefreq);
 				}
@@ -620,7 +620,7 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 			{
 				if (g_device->spacial != atoi(spacial))
 				{
-					VS1053_SetSpatial(atoi(spacial));
+					vsSetSpatial(atoi(spacial));
 					changed = true;
 					g_device->spacial = atoi(spacial);
 				}
@@ -842,15 +842,15 @@ static void handlePOST(char *name, char *data, int data_size, int conn)
 		char vol[6];
 		sprintf(vol, "%d", (getVolume()));
 		char treble[5];
-		sprintf(treble, "%d", (get_audio_output_mode() == VS1053) ? VS1053_GetTreble() : 0);
+		sprintf(treble, "%d", (get_audio_output_mode() == VS10xx) ? vsGetTreble() : 0);
 		char bass[5];
-		sprintf(bass, "%d", (get_audio_output_mode() == VS1053) ? VS1053_GetBass() : 0);
+		sprintf(bass, "%d", (get_audio_output_mode() == VS10xx) ? vsGetBass() : 0);
 		char tfreq[5];
-		sprintf(tfreq, "%d", (get_audio_output_mode() == VS1053) ? VS1053_GetTrebleFreq() : 0);
+		sprintf(tfreq, "%d", (get_audio_output_mode() == VS10xx) ? vsGetTrebleFreq() : 0);
 		char bfreq[5];
-		sprintf(bfreq, "%d", (get_audio_output_mode() == VS1053) ? VS1053_GetBassFreq() : 0);
+		sprintf(bfreq, "%d", (get_audio_output_mode() == VS10xx) ? vsGetBassFreq() : 0);
 		char spac[5];
-		sprintf(spac, "%d", (get_audio_output_mode() == VS1053) ? VS1053_GetSpatial() : 0);
+		sprintf(spac, "%d", (get_audio_output_mode() == VS10xx) ? vsGetSpatial() : 0);
 
 		struct icyHeader *header = clientGetHeader();
 		ESP_LOGV(TAG, "icy start header %x", (int)header);
