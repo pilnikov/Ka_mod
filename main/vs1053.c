@@ -307,13 +307,9 @@ void vsResetChip()
 	ControlReset(SET);
 	vTaskDelay(30);
 	ControlReset(RESET);
-	vTaskDelay(30);
-
+	
 	vsDisableAnalog();
 
-	if (vscheckDREQ() == 1)
-		return;
-	vTaskDelay(20);
 }
 
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)
@@ -359,75 +355,54 @@ const char* afName[] = {
 
 void vsInfo()
 {
-	int endFillBytes = SDI_END_FILL_BYTES;  // How many of those to send
-	static int vuMeter = 0;       // VU meter active
-
 	uint16_t sampleRate;
 	uint16_t hehtoBitsPerSec;
 	uint16_t h1 = vsReadSci(SCI_HDAT1);
 
 	if (h1 == 0x7665) {
 		audioFormat = afRiff;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if (h1 == 0x4154) {
 		audioFormat = afAacAdts;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if (h1 == 0x4144) {
 		audioFormat = afAacAdif;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if (h1 == 0x574d) {
 		audioFormat = afWma;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if (h1 == 0x4f67) {
 		audioFormat = afOggVorbis;
-		endFillBytes = SDI_END_FILL_BYTES_FLAC;
 	}
 	else if (h1 == 0x664c) {
 		audioFormat = afFlac;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if (h1 == 0x4d34) {
 		audioFormat = afAacMp4;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if ((h1 & 0xFFE6) == 0xFFE2) {
 		audioFormat = afMp3;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if ((h1 & 0xFFE6) == 0xFFE4) {
 		audioFormat = afMp2;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else if ((h1 & 0xFFE6) == 0xFFE6) {
 		audioFormat = afMp1;
-		endFillBytes = SDI_END_FILL_BYTES;
 	}
 	else {
 		audioFormat = afUnknown;
-		endFillBytes = SDI_END_FILL_BYTES_FLAC;
 	}
 
 	sampleRate = vsReadSci(SCI_AUDATA);
 	hehtoBitsPerSec = ReadVS10xxMem(PAR_BITRATE_PER_100);
 
-	ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s %04x ",
+	ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s h = 0x%X",
 		vsReadSci(SCI_DECODE_TIME),
 		hehtoBitsPerSec * 0.1,
 		sampleRate & 0xFFFE, (sampleRate & 1) ? "stereo" : "mono",
 		afName[audioFormat], h1
 	);
 
-	if (vuMeter) {
-		int vu, l, r;
-		vu = ReadVS10xxMem(PAR_VU_METER);
-		l = vu >> 8;
-		r = vu & 0xFF;
-		ESP_LOGI(TAG, "%2d %2d ", l, r);
-	}
 } /* REPORT_ON_SCREEN */
 
 
@@ -483,67 +458,66 @@ void vsStart()
 {
 	vsResetChip();
 
-	if (vscheckDREQ() == 0)
-	{
-		vsVersion = 0;
-		ESP_LOGE(TAG, "NO VS10xx detected");
-		return;
-	}
-
-	// these 4 lines makes board to run on mp3 mode, no soldering required anymore
-	vsWriteSci(SCI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
-	vsWriteSci(SCI_WRAM, 0x0003);	 //GPIO_DDR=3
-	vsWriteSci(SCI_WRAMADDR, 0xc019); //address of GPIO_ODATA is 0xC019
-	vsWriteSci(SCI_WRAM, 0x0000);	 //GPIO_ODATA=0
-	vTaskDelay(150);
-
 	int vsStatus = vsReadSci(SCI_STATUSVS);
 	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
 	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
 	//5 for VS1033, 7 for VS1103, and 6 for VS1063
 
-	ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
-	if (vsVersion == 4)								// only 1053b
-		vsWriteSci(SCI_CLOCKF, 0x8800);        // SC_MULT = x3.5, SC_ADD= x1
+	if (vsVersion == 0)
+		ESP_LOGE(TAG, "NO VS10xx detected");
 	else
-		vsWriteSci(SCI_CLOCKF, 0xB000);
-
-	while (vscheckDREQ() == 0)
-		taskYIELD();
-
-	vsregtest();
-
-	// enable I2C dac output of the vs1053
-	if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
 	{
-		vsWriteSci(SCI_WRAMADDR, 0xc017); //
-		vsWriteSci(SCI_WRAM, 0x00F0);	 //
-		vsI2SRate(g_device->i2sspeed);
+		ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
 
-		// plugin patch
-		if ((g_device->options & T_PATCH) == 0)
+		// these 4 lines makes board to run on mp3 mode, no soldering required anymore
+		vsWriteSci(SCI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
+		vsWriteSci(SCI_WRAM, 0x0003);	 //GPIO_DDR=3
+		vsWriteSci(SCI_WRAMADDR, 0xc019); //address of GPIO_ODATA is 0xC019
+		vsWriteSci(SCI_WRAM, 0x0000);	 //GPIO_ODATA=0
+		vTaskDelay(150);
+
+		if (vsVersion == 4)								// only 1053b
+			vsWriteSci(SCI_CLOCKF, 0x8800);        // SC_MULT = x3.5, SC_ADD= x1
+		else
+			vsWriteSci(SCI_CLOCKF, 0xB000);
+
+		while (vscheckDREQ() == 0)
+			taskYIELD();
+
+		vsregtest();
+
+		// enable I2C dac output of the vs1053
+		if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
 		{
-			uint16_t len = 0;
-			if (vsVersion == 4) { // only 1053
-				len = sizeof(patch1053) / sizeof(patch1053[0]);
-				vsLoadPlugin(patch1053, len);
+			vsWriteSci(SCI_WRAMADDR, 0xc017); //
+			vsWriteSci(SCI_WRAM, 0x00F0);	 //
+			vsI2SRate(g_device->i2sspeed);
+
+			// plugin patch
+			if ((g_device->options & T_PATCH) == 0)
+			{
+				uint16_t len = 0;
+				if (vsVersion == 4) { // only 1053
+					len = sizeof(patch1053) / sizeof(patch1053[0]);
+					vsLoadPlugin(patch1053, len);
+				}
+				if (vsVersion == 6) { // only 1063
+					len = sizeof(patch1063) / sizeof(patch1063[0]);
+					vsLoadPlugin(patch1063, len);
+				}
+				ESP_LOGI(TAG, "VS10xx patch is loaded %d \n", len);
 			}
-			if (vsVersion == 6) { // only 1063
-				len = sizeof(patch1063) / sizeof(patch1063[0]);
-				vsLoadPlugin(patch1063, len);
-			}
-			ESP_LOGI(TAG, "VS10xx patch is loaded %d \n", len);
 		}
+		vTaskDelay(5);
+		ESP_LOGI(TAG, "volume: %d", g_device->vol);
+		setIvol(g_device->vol);
+		vsSetVolume(g_device->vol);
+		vsSetTreble(g_device->treble);
+		vsSetBass(g_device->bass);
+		vsSetTrebleFreq(g_device->freqtreble);
+		vsSetBassFreq(g_device->freqbass);
+		vsSetSpatial(g_device->spacial);
 	}
-	vTaskDelay(5);
-	ESP_LOGI(TAG, "volume: %d", g_device->vol);
-	setIvol(g_device->vol);
-	vsSetVolume(g_device->vol);
-	vsSetTreble(g_device->treble);
-	vsSetBass(g_device->bass);
-	vsSetTrebleFreq(g_device->freqtreble);
-	vsSetBassFreq(g_device->freqbass);
-	vsSetSpatial(g_device->spacial);
 }
 
 int vsSendMusicBytes(uint8_t* music, uint16_t quantity)

@@ -163,6 +163,8 @@ int audio_stream_consumer(const char* recv_buf, ssize_t bytes_read,
 	t = (t + 1) & 255;
 	if (t == 0) {
 		ESP_LOGI(TAG, "Buffer fill %u%%, %d // %d bytes", fill_level, bytes_in_buf, spiRamFifoLen());
+		if (get_audio_output_mode() == VS10xx)
+			vsInfo();
 	}
 
 	return 0;

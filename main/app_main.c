@@ -967,6 +967,17 @@ void app_main()
 			g_device->lcd_type = LCD_NONE;
 		}
 	}
+
+	ESP_LOGI(TAG, "LCD Type %d", g_device->lcd_type); // lcd init
+
+	if (g_device->lcd_type != LCD_NONE)
+	{
+		setRotat(rt); // lcd rotation
+
+		lcd_init(g_device->lcd_type);
+	}	
+
+
 	// output mode one of  I2S, I2S_MERUS, DAC_BUILT_IN, PDM, VS1053, A1S
 	audio_output_mode = g_device->audio_output_mode;
 	ESP_LOGI(TAG, "audio_output_mode %d\nOne of I2S=0, I2S_MERUS, DAC_BUILT_IN, PDM, VS1053, A1S", audio_output_mode);
@@ -975,14 +986,6 @@ void app_main()
 	{
 		init_vs_hw(); //init vs1053 if in mode sel
 	}
-
-	// ESP_LOGE(TAG,"Corrupt1 %d",heap_caps_check_integrity(MALLOC_CAP_DMA,1));
-
-	ESP_LOGI(TAG, "LCD Type %d", g_device->lcd_type); // lcd init
-
-	setRotat(rt); // lcd rotation
-
-	lcd_init(g_device->lcd_type);
 
 	//Initialize the SPI RAM chip communications and see if it actually retains some bytes. If it
 	//doesn't, warn user.

@@ -312,7 +312,9 @@ static char* stringify(char* str, int len)
 bool clientPrintMeta()
 {
 	if (header.members.mArr[METADATA] != NULL)
+	{	
 		kprintf("##CLI.META#: %s\n", header.members.mArr[METADATA]);
+	}
 	else
 		kprintf("##CLI.META#:%c", 0x0D);
 
@@ -973,7 +975,9 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				cchunk = chunked;
 				ESP_LOGD(TAG, "newlen: %d   len: %d   chunked:%d  pdata:%x", newlen, len, chunked, (int)pdata);
 				if (newlen > 0)
+				{
 					clientReceiveCallback(sockfd, t1, newlen);
+				}
 			}
 			else
 			{
@@ -1208,8 +1212,6 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 			if (!ledStatus)
 				if (getLedGpio() != GPIO_NONE)
 					gpio_set_level(getLedGpio(), true ^ ledPolarity);
-			if (get_audio_output_mode() == VS10xx)
-				vsInfo();
 		}
 	}
 }
