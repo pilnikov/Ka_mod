@@ -44,7 +44,7 @@ static char parEmpty[] = { " " };
 const char CLIPLAY[] = { "##CLI.PLAYING#%c%c" };
 const char CLISTOP[] = { "##CLI.STOPPED# from %s\n" };
 
-const char *sterr;
+const char* sterr;
 
 #define strcMALLOC "Client: incmalloc fails for %d"
 #define strcMALLOC1 "%s malloc fails"
@@ -312,7 +312,7 @@ static char* stringify(char* str, int len)
 bool clientPrintMeta()
 {
 	if (header.members.mArr[METADATA] != NULL)
-	{	
+	{
 		kprintf("##CLI.META#: %s\n", header.members.mArr[METADATA]);
 	}
 	else
@@ -1267,7 +1267,7 @@ void clientTask(void* pvParams)
 			bytes_read = 0;
 
 			/*---Connect to server---*/
-			if (connect(sockfd, (struct sockaddr*) & dest, sizeof(dest)) >= 0)
+			if (connect(sockfd, (struct sockaddr*)&dest, sizeof(dest)) >= 0)
 			{
 				//				printf("WebClient Socket connected\n");
 				memset(bufrec, 0, RECEIVE + 20);
@@ -1301,7 +1301,7 @@ void clientTask(void* pvParams)
 
 				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) < 0)
 					sterr = lwip_strerr(errno);
-					ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  err: %s", sockfd, bytes_read, sterr);
+				ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  err: %s", sockfd, bytes_read, sterr);
 				//////
 				cnterror = 0;
 				do
@@ -1403,13 +1403,13 @@ void clientTask(void* pvParams)
 					audio_player_stop();
 
 				player_config->media_stream->eof = true;
-			
+
 				if (get_audio_output_mode() == VS10xx)
 					vsflush_cancel(2);
-				
+
 				playing = 0;
 				vTaskDelay(40); // stop without click
-			
+
 				setVolumei(getVolume());
 			}
 

@@ -307,7 +307,7 @@ void vsResetChip()
 	ControlReset(SET);
 	vTaskDelay(30);
 	ControlReset(RESET);
-	
+
 	vsDisableAnalog();
 
 }
@@ -476,8 +476,8 @@ void vsStart()
 		vsWriteSci(SCI_WRAM, 0x0000);	 //GPIO_ODATA=0
 		vTaskDelay(150);
 
-		if (vsVersion == 4)								// only 1053b
-			vsWriteSci(SCI_CLOCKF, 0x8800);        // SC_MULT = x3.5, SC_ADD= x1
+		if (vsVersion == 4)						// only 1053b
+			vsWriteSci(SCI_CLOCKF, 0x8800);     // SC_MULT = x3.5, SC_ADD= x1
 		else
 			vsWriteSci(SCI_CLOCKF, 0xB000);
 
@@ -489,8 +489,8 @@ void vsStart()
 		// enable I2C dac output of the vs1053
 		if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
 		{
-			vsWriteSci(SCI_WRAMADDR, 0xc017); //
-			vsWriteSci(SCI_WRAM, 0x00F0);	 //
+			vsWriteSci(SCI_WRAMADDR, 0xc017); 
+			vsWriteSci(SCI_WRAM, 0x00F0);	 
 			vsI2SRate(g_device->i2sspeed);
 
 			// plugin patch
@@ -555,7 +555,7 @@ uint8_t vsGetVolume()
 	for (i = 0; i < 255; i++)
 	{
 		j = (log10(255 / ((float)i + 1)) * 105.54571334); // magic no?
-														  //		printf("i=%d  j=%d value=%d\n",i,j,value);
+														  // printf("i=%d  j=%d value=%d\n",i,j,value);
 		if (value == j)
 			return i;
 	}
@@ -757,6 +757,7 @@ void vsflush_cancel(uint8_t mode)
 	int8_t endFillByte;
 	int16_t y;
 	uint8_t buf[513];
+	
 	if (mode != 2)
 	{
 		vsWriteSci8(SCI_WRAMADDR, MaskAndShiftRight(para_endFillByte, 0xFF00, 8), (para_endFillByte & 0x00FF));
@@ -790,14 +791,9 @@ void vsflush_cancel(uint8_t mode)
 		endFillByte = (int8_t)vsReadSci(SCI_WRAM) & 0xFF;
 		for (y = 0; y < 513; y++)
 			buf[y] = endFillByte;
-		for (y = 0; y < 5; y++)
-			vsSendMusicBytes(buf, 512); // 4*513 = 2052
 	}
-	else
-	{
-		for (y = 0; y < 5; y++)
+	for (y = 0; y < 5; y++)
 			vsSendMusicBytes(buf, 512); // 4*513 = 2052
-	}
 }
 
 //IRAM_ATTR
