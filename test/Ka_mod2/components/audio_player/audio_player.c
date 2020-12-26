@@ -16,7 +16,7 @@
 #include "esp_log.h"
 
 #include "webclient.h"
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "app_main.h"
 
 #define TAG "audio_player"
@@ -83,9 +83,9 @@ void audio_player_start()
 	char* task_name = (char*)"vsTask";
 	uint16_t stack_depth = 3000;
 	int priority = PRIO_VS1053;
-	xTaskCreatePinnedToCore(task_func, task_name, stack_depth, NULL, priority, NULL, 1);
+	xTaskCreatePinnedToCore(task_func, task_name, stack_depth, NULL, priority, NULL, 1); ///////////////////////////
 	spiRamFifoReset();
-	ESP_LOGE(TAG, "decoder task created: %s", task_name);
+	ESP_LOGI(TAG, "decoder task created: %s", task_name);
 }
 
 void audio_player_stop()

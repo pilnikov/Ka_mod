@@ -11,7 +11,7 @@
 #include "esp_wifi.h"
 #include "freertos/semphr.h"
 
-#include "vs1053.h"
+#include "vs10xx.h"
 #include "audio_player.h"
 #include "spiram_fifo.h"
 #include "app_main.h"
@@ -24,9 +24,10 @@ enum clientStatus cstatus;
 //static uint32_t metacount = 0;
 //static uint16_t metasize = 0;
 
-extern bool ledStatus, ledPolarity;
-
 xSemaphoreHandle sConnect, sConnected, sDisconnect, sHeader;
+
+const char* sterr;
+
 
 static uint8_t once = 0;
 static uint8_t playing = 0;
@@ -517,6 +518,7 @@ bool clientSaveOneHeader(const char* t, uint16_t len, uint8_t header_num)
 	return true;
 }
 
+
 bool clientParseHeader(char* s)
 {
 	// icy-notice1 icy-notice2 icy-name icy-genre icy-url icy-br
@@ -598,10 +600,7 @@ void clientSetURL(char* url)
 {
 	//remove	int l = strlen(url)+1;
 	if (url[0] == 0xff)
-		{
-			kprintf("##CLI.URLSET#: Wrong!!!\n");
-			return; // wrong url
-		}	
+		return; // wrong url
 	strcpy(clientURL, url);
 	kprintf("##CLI.URLSET#: %s\n", clientURL);
 }
@@ -633,7 +632,6 @@ void clientConnect()
 	else
 	{
 		clientDisconnect("clientConnect");
-		clientSaveOneHeader("Invalid host", 12, METANAME);
 		vTaskDelay(1);
 	}
 }
@@ -672,13 +670,13 @@ void clientSilentDisconnect()
 {
 	xSemaphoreGive(sDisconnect);
 
-	ESP_LOGE(TAG, "Client silent Disconnect!!!! Stopping player");
+	ESP_LOGW(TAG, "Client silent Disconnect!!!! Stopping player");
 
 	if (get_player_status() != STOPPED)
 		audio_player_stop();
 
 	int i = 0;
-	while (clientIsConnected() && i < 100)
+	while (!clientIsConnected() && i < 100)
 	{
 		i++;
 		vTaskDelay(1);
@@ -691,20 +689,22 @@ void clientDisconnect(const char* from)
 	kprintf(CLISTOP, from);
 	xSemaphoreGive(sDisconnect);
 
-	ESP_LOGE(TAG, "Client Disconnect!!!! Stopping player");
+	ESP_LOGW(TAG, "Client Disconnect!!!! Stopping player");
 
 	if (get_player_status() != STOPPED)
 		audio_player_stop();
-	
+
 	int i = 0;
-	while (clientIsConnected() && i < 100)
+	while (!clientIsConnected() && i < 100)
 	{
 		i++;
 		vTaskDelay(1);
 	}
 
+	if ((from[0] != 'C') || (from[1] != '_'))
 	esp_wifi_set_ps(WIFI_PS_MAX_MODEM);
 	vTaskDelay(5);
+	// save the volume if needed on stop state
 }
 
 void clientReceiveCallback(int sockfd, char* pdata, int len)
@@ -797,11 +797,12 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 					cstatus = C_HEADER;
 				}
 				icyfound = clientParseHeader(pdata);
-
 				if (header.members.single.metaint > 0)
 					metad = header.members.single.metaint;
 				ESP_LOGD(TAG, "t1: 0x%x, cstatus: %d, icyfound: %d  metad:%d Metaint:%d\n", (int)t1, cstatus, icyfound, metad, (header.members.single.metaint));
 				cstatus = C_DATA; // a stream found
+
+				ESP_LOGW(TAG, "Stream found!!!! Start player");
 
 				/////////////////////////////////////////////////////////////////////////////////////////////////
 				player_config->media_stream->eof = false;
@@ -830,7 +831,9 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				cchunk = chunked;
 				ESP_LOGD(TAG, "newlen: %d   len: %d   chunked:%d  pdata:%x", newlen, len, chunked, (int)pdata);
 				if (newlen > 0)
+				{
 					clientReceiveCallback(sockfd, t1, newlen);
+				}
 			}
 			else
 			{
@@ -982,9 +985,6 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 		clen = len;
 		if ((header.members.single.metaint != 0) && (clen > metad))
 		{
-			//			ESP_LOGD(TAG,"clientReceiveCallback: pdata: %x, pdataend: %x, len: %d",(int)pdata,(int)pdata+len,len);
-
-			//			ESP_LOGD(TAG,"metain len:%d, clen:%d, metad:%d, l:%d, inpdata:%x, rest:%d\n",len,clen,metad, l,(int)inpdata,rest );
 			int jj = 0;
 			while ((clen > metad) && (header.members.single.metaint != 0)) // in buffer
 			{
@@ -992,10 +992,6 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				jj++;
 				l = inpdata[metad] * 16; //new meta length
 				rest = clen - metad - l - 1;
-
-				//if (l ==0){
-				//	printf("mt len:%d, clen:%d, metad:%d,&l:%x, l:%d, rest:%d\n",len,clen,metad,inpdata+metad, l,rest );
-				//if (l > 80) dump(inpdata,len);
 
 				if (l != 0)
 				{
@@ -1016,6 +1012,7 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				}
 				if (metad > 0)
 				{
+					//					if (spiRamFifoFree() < metad) ESP_LOGV(TAG,"metaout wait metad: %d, bufferfree: %d",metad,spiRamFifoFree());
 					while (spiRamFifoFree() < metad) // wait some room
 						vTaskDelay(20);
 					audio_stream_consumer((char*)inpdata, metad, (void*)player_config); //write stream data in bufer 
@@ -1023,11 +1020,11 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				metad = header.members.single.metaint;
 				inpdata = inpdata + clen - rest;
 				if (rest < 0)
-					ESP_LOGD(TAG, "mt1 len:%d, clen:%d, metad:%d, l:%d, inpdata:%x,  rest:%d", len, clen, metad, l, (int)inpdata, rest);
+					kprintf("mt1 len:%d, clen:%d, metad:%d, l:%d, inpdata:%x,  rest:%d", len, clen, metad, l, (int)inpdata, rest);
 				clen = rest;
 				if (rest < 0)
 				{
-					ESP_LOGD(TAG, "mt2 len:%d, clen:%d, metad:%d, l:%d, inpdata:%x,  rest:%d", len, clen, metad, l, (int)inpdata, rest);
+					kprintf("mt2 len:%d, clen:%d, metad:%d, l:%d, inpdata:%x,  rest:%d", len, clen, metad, l, (int)inpdata, rest);
 					clen = 0;
 					break;
 				}
@@ -1043,14 +1040,12 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				}
 				rest = 0;
 			}
-			//ESP_LOGD(TAG,"metaout len:%d, clen:%d, metad:%d, l:%d, inpdata:%x, rest:%d",len,clen,metad, l,(int)inpdata,rest );
 		}
 		else
 		{
 
 			if (header.members.single.metaint != 0)
 				metad -= len;
-			//printf("out len = %d, metad = %d  metaint= %d, rest:%d\n",len,metad,header.members.single.metaint,rest);
 			if (len > 0)
 			{
 				while (spiRamFifoFree() < len) // wait some room
@@ -1061,14 +1056,12 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 		// ---------------
 		if (!playing)
 		{
-			VS1053_SetVolume(0);
 			playing = 1;
 			if (once == 0)
 				vTaskDelay(20);
 			else
 				vTaskDelay(1);
 
-			VS1053_SetVolume(60);
 			kprintf(CLIPLAY, 0x0d, 0x0a);
 		}
 	}
@@ -1080,22 +1073,20 @@ void playStationInt(int st_n)
 
 	ESP_LOGE(TAG, "Start PSI");
 
-	struct shoutcast_info _si = {"stream.radioparadise.com", "/flac", "Sector", 80};
+	//struct shoutcast_info _si = {"stream.radioparadise.com", "/flac", "Sector", 80};
+	struct shoutcast_info _si = {"live.m2stream.fr", "/m2rock-128.mp3", "M2 Rock", 80};
 	struct shoutcast_info *si = &_si;
 
 	ESP_LOGE(TAG,"playstationInt: %d, Name: %s, url: %s, path: %s, port: %d\n", st_n, si->name, si->domain, si->file, si->port);
 
 
 	vTaskDelay(4);
-	clientSilentDisconnect();
-	
 	
 	clientSetName(si->name, st_n);
 	clientSetURL(si->domain);
 	clientSetPath(si->file);
 	clientSetPort(si->port);
 	
-	ESP_LOGE(TAG,"Name: %s, url: %s, path: %s\n",si->name, si->domain, si->file);
 
 	clientConnect();
 	int i = 0;
@@ -1107,7 +1098,6 @@ void playStationInt(int st_n)
 
 	ESP_LOGE(TAG, "playstationInt: %d, g_device: %d", st_n, g_device.currentstation);
 }
-
 
 uint8_t bufrec[RECEIVE + 20];
 static char useragent[40];
@@ -1122,9 +1112,15 @@ void clientTask(void* pvParams)
 	int bytes_read;
 	uint8_t cnterror;
 
+	strcpy(useragent, "Karadio/1.5");
+	
 	struct sockaddr_in dest;
 
-	vTaskDelay(300);
+	vTaskDelay(30);
+
+	//	portBASE_TYPE uxHighWaterMark;
+	//	uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
+	//	printf("watermark webclient:%d  heap:%d\n",uxHighWaterMark,xPortGetFreeHeapSize( ));
 
 	while (1)
 	{
@@ -1132,26 +1128,25 @@ void clientTask(void* pvParams)
 		if (xSemaphoreTake(sConnect, portMAX_DELAY))
 		{
 			xSemaphoreTake(sDisconnect, 0);
-			sockfd = socket(AF_INET, SOCK_STREAM, 0);// create socket
-			ESP_LOGI(TAG, "Webclient socket: %d, err: ", sockfd, lwip_strerr(errno));
+			sockfd = socket(AF_INET, SOCK_STREAM, 0);
+			sterr = lwip_strerr(errno);
+			ESP_LOGI(TAG, "Webclient socket: %d, err: %s", sockfd, sterr);
 			if (sockfd < 0)
 			{
-				ESP_LOGE(TAG, "Webclient socket create, err: ", lwip_strerr(errno));
+				sterr = lwip_strerr(errno);
+				ESP_LOGE(TAG, "Webclient socket create, err: %s", sterr);
 				xSemaphoreGive(sDisconnect);
 				continue;
 			}
-			
-			bzero(&dest, sizeof(dest)); //clean socaddr_in
-			
-			/*---prepare socket---*/
+			bzero(&dest, sizeof(dest));
 			dest.sin_family = AF_INET;
 			dest.sin_port = htons(clientPort);
 			dest.sin_addr.s_addr = inet_addr(inet_ntoa(*(struct in_addr*)(server->h_addr_list[0])));
-			
 			bytes_read = 0;
 
 			/*---Connect to server---*/
-			if (connect(sockfd, (struct sockaddr*) & dest, sizeof(dest)) >= 0)
+			ESP_LOGI(TAG, "Webclient socket: %d, addr: %u", sockfd, dest.sin_addr.s_addr);
+			if (connect(sockfd, (struct sockaddr*)&dest, sizeof(dest)) >= 0)
 			{
 				//				printf("WebClient Socket connected\n");
 				memset(bufrec, 0, RECEIVE + 20);
@@ -1178,32 +1173,35 @@ void clientTask(void* pvParams)
 					//printf("sprint%d\n",7);
 					sprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
 				}
-				//printf("st:%d, Client Sent:\n%s\n",cstatus,bufrec);
-				xSemaphoreTake(sConnected, 0); //end connect procedure
-				
-				send(sockfd, (char*)bufrec, strlen((char*)bufrec), 0); //send request
+				xSemaphoreTake(sConnected, 0);
+
+				kprintf((char*)bufrec, "GET %s HTTP/1.1\r\nHost: %s\r\nicy-metadata: 1\r\nUser-Agent: %s\r\n\r\n", clientPath, clientURL, useragent);
+				send(sockfd, (char*)bufrec, strlen((char*)bufrec), 0);
 
 				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, (char*)&timeout, sizeof(timeout)) < 0)
-					ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  err: ", sockfd, bytes_read, lwip_strerr(errno));
+					sterr = lwip_strerr(errno);
+				ESP_LOGE(TAG, "Client socket: %d  setsockopt: %d  err: %s", sockfd, bytes_read, sterr);
 				//////
 				cnterror = 0;
 				do
 				{
-					bytes_read = recvfrom(sockfd, bufrec, RECEIVE, 0, NULL, NULL);//receive data
+					bytes_read = recvfrom(sockfd, bufrec, RECEIVE, 0, NULL, NULL);
 					if (bytes_read < 0)
 					{
-						ESP_LOGE(TAG, "Client socket: %d  read: %d  err: ", sockfd, bytes_read, lwip_strerr(errno));
+						sterr = lwip_strerr(errno);
+						ESP_LOGE(TAG, "Client socket: %d  read: %d  err: %s", sockfd, bytes_read, sterr);
 						if (errno == 11)
 							bytes_read = 0;
 					}
-					if (bytes_read > 0) //data is receive, run callback
+					if (bytes_read > 0)
 					{
 						cnterror = 0;
 						clientReceiveCallback(sockfd, (char*)bufrec, bytes_read);
 					}
 					else
 					{
-						ESP_LOGE(TAG, "No data in recv. Err: ", lwip_strerr(errno));
+						sterr = lwip_strerr(errno);
+						ESP_LOGE(TAG, "No data in recv. Err: %s", sterr);
 						cnterror++;
 						if (errno != 11)
 							vTaskDelay(20); //timeout
@@ -1223,8 +1221,8 @@ void clientTask(void* pvParams)
 			}
 			else
 			{
-				ESP_LOGE(TAG, "Client socket: %d  connect: %d  errno:%d ", sockfd, bytes_read, errno);
-				clientSaveOneHeader("Invalid address", 15, METANAME);
+				sterr = lwip_strerr(errno);
+				ESP_LOGE(TAG, "Client socket: %d  connect: %d  err: %s ", sockfd, bytes_read, sterr);
 				vTaskDelay(1);
 				clientDisconnect("Invalid");
 				close(sockfd);
@@ -1246,7 +1244,6 @@ void clientTask(void* pvParams)
 					{
 						playing = 1;
 						vTaskDelay(1);
-						VS1053_SetVolume(100);
 						kprintf(CLIPLAY, 0x0d, 0x0a);
 						while (spiRamFifoFill())
 							vTaskDelay(100);
@@ -1264,7 +1261,6 @@ void clientTask(void* pvParams)
 				}
 				else
 				{ //playing & once=1 and no more received stream
-
 					while (spiRamFifoFill())
 						vTaskDelay(100);
 					vTaskDelay(200);
@@ -1272,9 +1268,8 @@ void clientTask(void* pvParams)
 				}
 			} //jpc
 
-			if (playing) // end clean, stop player
+			if (playing) // stop clean
 			{
-				VS1053_SetVolume(0);
 
 				ESP_LOGE(TAG, "Stop clean!!!! Stopping player");
 
@@ -1282,19 +1277,18 @@ void clientTask(void* pvParams)
 					audio_player_stop();
 
 				player_config->media_stream->eof = true;
-				//				bufferReset();
-				VS1053_flush_cancel(2);
+
+				vsflush_cancel(2);
+
 				playing = 0;
 				vTaskDelay(40); // stop without click
-				//VS1053_LowPower();
-				VS1053_SetVolume(0);
+
 			}
 
-			//			bufferReset();
 			shutdown(sockfd, SHUT_RDWR); // stop the socket
 			vTaskDelay(1);
 			close(sockfd);
-			//printf("WebClient Socket closed\n");
+
 			if (cstatus == C_PLAYLIST)
 			{
 				clientConnect();

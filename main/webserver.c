@@ -425,7 +425,7 @@ void playStationInt(int sid)
 	if (si != NULL && si->domain && si->file)
 	{
 		vTaskDelay(4);
-		clientSilentDisconnect();
+		//clientSilentDisconnect();
 		ESP_LOGV(TAG, "playstationInt: %d, new station: %s", sid, si->name);
 		clientSetName(si->name, sid);
 		clientSetURL(si->domain);

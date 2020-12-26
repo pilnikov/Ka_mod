@@ -1267,6 +1267,7 @@ void clientTask(void* pvParams)
 			bytes_read = 0;
 
 			/*---Connect to server---*/
+			ESP_LOGI(TAG, "Webclient socket: %d, addr: %u", sockfd, dest.sin_addr.s_addr);
 			if (connect(sockfd, (struct sockaddr*)&dest, sizeof(dest)) >= 0)
 			{
 				//				printf("WebClient Socket connected\n");

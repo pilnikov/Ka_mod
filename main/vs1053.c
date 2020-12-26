@@ -89,6 +89,9 @@ int get_vsVersion() { return vsVersion; }
 
 bool vsHW_init()
 {
+
+	bool ret = false;
+
 	gpio_num_t miso;
 	gpio_num_t mosi;
 	gpio_num_t sclk;
@@ -105,56 +108,59 @@ bool vsHW_init()
 	{
 		vsVersion = 0;
 		ESP_LOGE(TAG, "VS10xx not used");
-		return false;
 	}
-	uint32_t freq = spi_get_actual_clock(APB_CLK_FREQ, 1400000, 128);
-	ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
-	spi_device_interface_config_t devcfg = {
-		.clock_speed_hz = freq, //Clock out at x MHz
-		.command_bits = 8,
-		.address_bits = 8,
-		.dummy_bits = 0,
-		.duty_cycle_pos = 0,
-		.cs_ena_pretrans = 0,
-		.cs_ena_posttrans = 1,
-		.flags = 0,
-		.mode = 0,			 //SPI mode
-		.spics_io_num = xcs, //XCS pin
-		.queue_size = 1,	 //We want to be able to queue x transactions at a time
-		.pre_cb = NULL, //Specify pre-transfer callback to handle D/C line
-		.post_cb = NULL };
+	else
+	{
+		uint32_t freq = spi_get_actual_clock(APB_CLK_FREQ, 1400000, 128);
+		ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
+		spi_device_interface_config_t devcfg = {
+			.clock_speed_hz = freq, //Clock out at x MHz
+			.command_bits = 8,
+			.address_bits = 8,
+			.dummy_bits = 0,
+			.duty_cycle_pos = 0,
+			.cs_ena_pretrans = 0,
+			.cs_ena_posttrans = 1,
+			.flags = 0,
+			.mode = 0,			 //SPI mode
+			.spics_io_num = xcs, //XCS pin
+			.queue_size = 1,	 //We want to be able to queue x transactions at a time
+			.pre_cb = NULL, //Specify pre-transfer callback to handle D/C line
+			.post_cb = NULL };
 
-	//slow speed
-	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
+		//slow speed
+		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
 
-	//high speed
-	freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
-	ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
-	devcfg.clock_speed_hz = freq;
-	devcfg.spics_io_num = xdcs; //XDCS pin
-	devcfg.command_bits = 0;
-	devcfg.address_bits = 0;
-	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
+		//high speed
+		freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
+		ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
+		devcfg.clock_speed_hz = freq;
+		devcfg.spics_io_num = xdcs; //XDCS pin
+		devcfg.command_bits = 0;
+		devcfg.address_bits = 0;
+		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
 
-	/*---- Initialize non-SPI GPIOs ----*/
-	gpio_config_t gpio_conf;
-	gpio_conf.mode = GPIO_MODE_OUTPUT;
-	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
-	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+		/*---- Initialize non-SPI GPIOs ----*/
+		gpio_config_t gpio_conf;
+		gpio_conf.mode = GPIO_MODE_OUTPUT;
+		gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+		gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+		gpio_conf.intr_type = GPIO_INTR_DISABLE;
+		gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
+		ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
-	ControlReset(RESET); //Set xrst pin level to HIGH
+		ControlReset(RESET); //Set xrst pin level to HIGH
 
-	gpio_conf.mode = GPIO_MODE_INPUT;
-	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
-	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
-	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+		gpio_conf.mode = GPIO_MODE_INPUT;
+		gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+		gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+		gpio_conf.intr_type = GPIO_INTR_DISABLE;
+		gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
+		ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
-	return true;
+		ret = true;
+	}
+	return ret;		/* code */
 }
 
 void ControlReset(uint8_t State)
@@ -825,7 +831,7 @@ void vsTask(void* pvParams)
 			vTaskDelay(10);
 		}
 
-		vTaskDelay(2);
+		vTaskDelay(5);
 	}
 
 	spiRamFifoReset();
