@@ -39,7 +39,7 @@ static void evtClearScreen();
 // second before time display in stop state
 #define DTIDLE 60
 
-#define isColor (lcd_type & LCD_COLOR)
+#define isColor (g_device->lcd_type & LCD_COLOR)
 const char *stopped = "STOPPED";
 
 char irStr[4];
@@ -170,7 +170,7 @@ void *getEncoder(int num)
 
 static void ClearBuffer()
 {
-	if (lcd_type == LCD_NONE)
+	if (g_device->lcd_type == LCD_NONE)
 		return;
 	if (isColor)
 		ucg_ClearScreen(&ucg);
@@ -581,7 +581,8 @@ static void evtClearScreen()
 	evt.lcmd = eclrs;
 	evt.lline = NULL;
 	//	xQueueSendToFront(event_lcd,&evt, 0);
-	xQueueSend(event_lcd, &evt, 0);
+	if (g_device->lcd_type != LCD_NONE)
+		 xQueueSend(event_lcd, &evt, 0);
 }
 
 static void evtScreen(typelcmd value)
@@ -589,7 +590,8 @@ static void evtScreen(typelcmd value)
 	event_lcd_t evt;
 	evt.lcmd = escreen;
 	evt.lline = (char *)((uint32_t)value);
-	xQueueSend(event_lcd, &evt, 0);
+	if (g_device->lcd_type != LCD_NONE)
+		xQueueSend(event_lcd, &evt, 0);
 }
 
 static void evtStation(int16_t value)
@@ -597,7 +599,8 @@ static void evtStation(int16_t value)
 	event_lcd_t evt;
 	evt.lcmd = estation;
 	evt.lline = (char *)((uint32_t)value);
-	xQueueSend(event_lcd, &evt, 0);
+	if (g_device->lcd_type != LCD_NONE)
+		xQueueSend(event_lcd, &evt, 0);
 }
 
 // toggle main / time
@@ -606,7 +609,8 @@ static void toggletime()
 	event_lcd_t evt;
 	evt.lcmd = etoggle;
 	evt.lline = NULL;
-	xQueueSend(event_lcd, &evt, 0);
+	if (g_device->lcd_type != LCD_NONE)
+		xQueueSend(event_lcd, &evt, 0);
 }
 
 //--------------------------------------
@@ -1356,7 +1360,7 @@ void task_lcd(void *pvParams)
 	event_lcd_t evt1; // lcd event
 	ESP_LOGD(TAG, "task_lcd Started, LCD Type %d", lcd_type);
 
-	if (lcd_type != LCD_NONE)
+	if (g_device->lcd_type != LCD_NONE)
 	{
 		defaultStateScreen = (g_device->options32 & T_TOGGLETIME) ? stime : smain;
 		option_get_lcd_blv(&blv); // init backlight value;
@@ -1373,7 +1377,7 @@ void task_lcd(void *pvParams)
 
 			if (timerScroll >= 500) //500 ms
 			{
-				if (lcd_type != LCD_NONE)
+				if (g_device->lcd_type != LCD_NONE)
 				{
 					if (stateScreen == smain)
 					{
@@ -1497,20 +1501,25 @@ void task_addon(void *pvParams)
 	; // connect the 1ms interruption
 	futurNum = getCurrentStation();
 
+
+
 	//ir
 	// queue for events of the IR nec rx
 	event_ir = xQueueCreate(5, sizeof(event_ir_t));
 	ESP_LOGD(TAG, "event_ir: %x", (int)event_ir);
-	// queue for events of the lcd
-	event_lcd = xQueueCreate(20, sizeof(event_lcd_t));
-	ESP_LOGD(TAG, "event_lcd: %x", (int)event_lcd);
-
 	xTaskCreatePinnedToCore(rmt_nec_rx_task, "rmt_nec_rx_task", 2148, NULL, PRIO_RMT, &pxCreatedTask, CPU_RMT);
 	ESP_LOGI(TAG, "%s task: %x", "rmt_nec_rx_task", (unsigned int)pxCreatedTask);
 	;
-	xTaskCreatePinnedToCore(task_lcd, "task_lcd", 2200, NULL, PRIO_LCD, &pxTaskLcd, CPU_LCD);
-	ESP_LOGI(TAG, "%s task: %x", "task_lcd", (unsigned int)pxTaskLcd);
-	getTaskLcd(&pxTaskLcd); // give the handle to xpt
+	if (g_device->lcd_type!=LCD_NONE)
+		{
+			// queue for events of the lcd
+			event_lcd = xQueueCreate(20, sizeof(event_lcd_t));
+			ESP_LOGD(TAG, "event_lcd: %x", (int)event_lcd);
+
+			xTaskCreatePinnedToCore(task_lcd, "task_lcd", 2200, NULL, PRIO_LCD, &pxTaskLcd, CPU_LCD);
+			ESP_LOGI(TAG, "%s task: %x", "task_lcd", (unsigned int)pxTaskLcd);
+			getTaskLcd(&pxTaskLcd); // give the handle to xpt
+		}
 
 	while (1)
 	{
@@ -1666,7 +1675,7 @@ void addonParse(const char *fmt, ...)
 		evt.lcmd = lovol;
 		evt.lline = NULL;
 	}
-	if (evt.lcmd != -1)
-		xQueueSend(event_lcd, &evt, 0);
+	if (evt.lcmd != -1 && g_device->lcd_type !=LCD_NONE)
+			xQueueSend(event_lcd, &evt, 0);
 	free(line);
 }

@@ -959,14 +959,14 @@ void app_main()
 	{
 		Spi_init();
 	}
-	else
+	
+	gpio_get_i2c(&scl, &sda, &rsti2c);
+	if ((scl == GPIO_NONE || sda == GPIO_NONE) && g_device->lcd_type < 100)
 	{
-		gpio_get_i2c(&scl, &sda, &rsti2c);
-		if (scl == GPIO_NONE || sda == GPIO_NONE)
-		{
 			g_device->lcd_type = LCD_NONE;
-		}
+			saveDeviceSettings(g_device);
 	}
+
 
 	ESP_LOGI(TAG, "LCD Type %d", g_device->lcd_type); // lcd init
 

@@ -11,6 +11,8 @@
 #include "driver/gpio.h"
 #include "gpio.h"
 #include "custom.h"
+#include "eeprom.h"
+#include "addon.h"
 #include "driver/ledc.h"
 /**********************
  *  STATIC VARIABLES
@@ -70,12 +72,20 @@ static void backlight_init()
 
 void backlight_percentage_set(int value)
 {
-	if (lcdb != GPIO_NONE)
+	gpio_get_lcd_backlightl(&lcdb);
+	if (lcdb != GPIO_NONE && g_device->lcd_type != LCD_NONE)
 	{
-		int duty = DUTY_MAX * (value * 0.01f);
-//		printf("backlight_percentage_set  %d\n",value);
-		ledc_set_fade_with_time(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty, 20);
-		ledc_fade_start(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, LEDC_FADE_WAIT_DONE);
+
+		if (value > 100)
+			value = 100;
+
+		if (lcdb != GPIO_NONE)
+		{
+			int duty = DUTY_MAX * (value * 0.01f);
+	//		printf("backlight_percentage_set  %d\n",value);
+			ledc_set_fade_with_time(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, duty, 20);
+			ledc_fade_start(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, LEDC_FADE_WAIT_DONE);
+		}
 	}
 }
 
@@ -83,7 +93,7 @@ void backlight_percentage_set(int value)
 void LedBacklightInit()
 {
 	gpio_get_lcd_backlightl(&lcdb);
-	if (lcdb != GPIO_NONE)
+	if (lcdb != GPIO_NONE && g_device->lcd_type != LCD_NONE)
 	{
 		gpio_output_conf(lcdb);
 		gpio_set_level(lcdb,1);
@@ -93,7 +103,8 @@ void LedBacklightInit()
 }	 
 bool LedBacklightOn(int blv) 
 {
-	if (lcdb != GPIO_NONE)
+	gpio_get_lcd_backlightl(&lcdb);
+	if (lcdb != GPIO_NONE && g_device->lcd_type != LCD_NONE)
 	{
 	//		gpio_set_level(lcdb,1);
 		// duty range is 0 ~ ((2**duty_resolution)-1)
@@ -106,7 +117,8 @@ bool LedBacklightOn(int blv)
  
 bool  LedBacklightOff() 
 {
-	if (lcdb != GPIO_NONE)
+	gpio_get_lcd_backlightl(&lcdb);
+	if (lcdb != GPIO_NONE && g_device->lcd_type != LCD_NONE)
 	{
 	//		gpio_set_level(lcdb,0);
 		// duty range is 0 ~ ((2**duty_resolution)-1)

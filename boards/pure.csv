@@ -2,7 +2,7 @@ key,type,encoding,value
 
 label_space,namespace,,
 L_LABEL,data,string,pure.csv
-L_COMMENT,data,string,lcd:none led:22 
+L_COMMENT,data,string,all 255
 
 gpio_space,namespace,,
 K_SPI,data,u8,2
@@ -40,14 +40,20 @@ P_JOY_0,data,u8,255
 P_JOY_1,data,u8,255
 P_LED_GPIO,data,u8,255
 P_ADC_KBD,data,u8,255
+P_ADC_BAT,data,u8,255
 P_BACKLIGHT,data,u8,255
 
 option_space,namespace,,
-O_BTN0,data,u8,0
 O_LCD_TYPE,data,u8,255
 O_LCD_ROTA,data,u8,0
 O_LCD_OUT,data,u32,0
-O_DDMM_FLAG,data,u8,1
+O_LCD_STOP,data,u32,0
+O_LCD_BLV,data,i32,0
+O_DDMM_FLAG,data,u8,0
+O_AUDIO,data,u8,0
+O_ESPLAY,data,u8,0
+O_BAT_R1,data,u8,100
+O_BAT_R2,data,u8,100
 
 custom_ir_space,namespace,,
 K_UP,data,string,
@@ -67,4 +73,4 @@ K_8,data,string,
 K_9,data,string,
 K_STAR,data,string,
 K_DIESE,data,string,
-K_INFO,data,string,
+K_INFO,data,string,0xFF0056

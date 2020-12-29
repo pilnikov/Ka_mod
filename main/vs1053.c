@@ -208,8 +208,12 @@ void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t* cbyte, uint16_t len)
 	t.tx_buffer = cbyte;
 	t.length = len * 8;
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    uint8_t suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 
 	spi_take_semaphore(hsSPI);
 	ret = spi_device_transmit(ivsspi, &t); //Transmit!
@@ -217,8 +221,12 @@ void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t* cbyte, uint16_t len)
 		ESP_LOGE(TAG, "err: %d, vsspi_write_char(len: %d)", ret, len);
 	spi_give_semaphore(hsSPI);
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 }
 
 void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
@@ -236,8 +244,13 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	t.tx_data[0] = highbyte;
 	t.tx_data[1] = lowbyte;
 	t.length = 16;
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    
+	uint8_t suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 
 	spi_take_semaphore(vsSPI);
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
@@ -245,8 +258,12 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci8(%d,%d,%d)", ret, addr, highbyte, lowbyte);
 	spi_give_semaphore(vsSPI);
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+	{
+        taskYIELD();
+        suc++;
+    }
 }
 
 void vsWriteSci(uint8_t addr, uint16_t value)
@@ -265,8 +282,12 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 	t.tx_data[1] = value & 0xff;
 	t.length = 16;
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    uint8_t suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 
 	spi_take_semaphore(vsSPI);
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
@@ -274,8 +295,12 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci(%d,%d)", ret, addr, value);
 	spi_give_semaphore(vsSPI);
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+	suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+			taskYIELD();
+			suc++;
+		}	
 }
 
 uint16_t vsReadSci(uint8_t addressbyte)
@@ -292,8 +317,12 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	t.cmd = VS_READ_COMMAND;
 	t.addr = addressbyte;
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    uint8_t suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 
 	spi_take_semaphore(vsSPI);
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
@@ -302,8 +331,12 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	result = (((t.rx_data[0] & 0xFF) << 8) | ((t.rx_data[1]) & 0xFF));
 	spi_give_semaphore(vsSPI);
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+    suc = 0;
+	while (vscheckDREQ() == 0 && suc < 20)
+		{
+            taskYIELD();
+            suc++;
+        }
 
 	return result;
 }
