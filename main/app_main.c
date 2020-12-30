@@ -950,6 +950,9 @@ void app_main()
 	gpio_num_t sda;
 	gpio_num_t scl;
 	gpio_num_t rsti2c;
+	gpio_num_t cs;
+	gpio_num_t a0;
+	gpio_num_t rstlcd;
 
 	uint8_t rt;
 	option_get_lcd_info(&g_device->lcd_type, &rt);
@@ -961,7 +964,14 @@ void app_main()
 	}
 	
 	gpio_get_i2c(&scl, &sda, &rsti2c);
-	if ((scl == GPIO_NONE || sda == GPIO_NONE) && g_device->lcd_type < 100)
+	if ((scl == GPIO_NONE || sda == GPIO_NONE) && g_device->lcd_type < 8)
+	{
+			g_device->lcd_type = LCD_NONE;
+			saveDeviceSettings(g_device);
+	}
+
+	gpio_get_spi_lcd(&cs, &a0, &rstlcd);
+	if ((cs == GPIO_NONE || a0 == GPIO_NONE) && g_device->lcd_type & LCD_SPI)
 	{
 			g_device->lcd_type = LCD_NONE;
 			saveDeviceSettings(g_device);
