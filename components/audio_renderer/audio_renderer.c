@@ -24,7 +24,7 @@
 #include "ac101.h"
 #include "audio_hal.h"
 
-#define TAG "renderer"
+#define TAG "Renderer"
 
 
 static renderer_config_t* renderer_instance = NULL;
@@ -423,6 +423,7 @@ void renderer_start()
 	ESP_LOGD(TAG, "Start");
 	i2s_start(renderer_instance->i2s_num);
 	renderer_status = RUNNING;
+	ESP_LOGD(TAG, "Render is running!!!!");
 }
 
 void renderer_stop()

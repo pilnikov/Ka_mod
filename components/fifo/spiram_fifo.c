@@ -53,7 +53,7 @@ static  char* fakespiram;
 #define spiRamRead(pos, buf, n) memcpy(buf, &fakespiram[pos], n)
 #endif
 
-static unsigned SPIRAMSIZE = (1024 * 1024);
+static unsigned SPIRAMSIZE = (40 * 1024);
 
 void setSPIRAMSIZE(unsigned size)
 {
