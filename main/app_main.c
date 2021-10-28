@@ -118,8 +118,8 @@ IRAM_ATTR void msCallback(void *pArg)
 	int timer_idx = (int)pArg;
 
 	//	queue_event_t evt;
-	TIMERG1.hw_timer[timer_idx].update = 1;
-	TIMERG1.int_clr_timers.t0 = 1; //isr ack
+	TIMERG1.hw_timer[timer_idx].update.tx_update = 1;
+	TIMERG1.int_clr_timers.t0_int_clr = 1; //isr ack
 	if (divide)
 	{
 		ctimeMs++;  // for led
@@ -128,31 +128,31 @@ IRAM_ATTR void msCallback(void *pArg)
 	divide = !divide;
 	if (serviceAddon != NULL)
 		serviceAddon(); // for the encoders and buttons
-	TIMERG1.hw_timer[timer_idx].config.alarm_en = 1;
+	TIMERG1.hw_timer[timer_idx].config.tx_alarm_en = 1;
 }
 
 IRAM_ATTR void sleepCallback(void *pArg)
 {
 	int timer_idx = (int)pArg;
 	queue_event_t evt;
-	TIMERG0.int_clr_timers.t0 = 1; //isr ack
+	TIMERG0.int_clr_timers.t0_int_clr = 1; //isr ack
 	evt.type = TIMER_SLEEP;
 	evt.i1 = TIMERGROUP;
 	evt.i2 = timer_idx;
 	xQueueSendFromISR(event_queue, &evt, NULL);
-	TIMERG0.hw_timer[timer_idx].config.alarm_en = 0;
+	TIMERG0.hw_timer[timer_idx].config.tx_alarm_en = 0;
 }
 
 IRAM_ATTR void wakeCallback(void *pArg)
 {
 	int timer_idx = (int)pArg;
 	queue_event_t evt;
-	TIMERG0.int_clr_timers.t1 = 1;
+	TIMERG0.int_clr_timers.t1_int_clr = 1;
 	evt.i1 = TIMERGROUP;
 	evt.i2 = timer_idx;
 	evt.type = TIMER_WAKE;
 	xQueueSendFromISR(event_queue, &evt, NULL);
-	TIMERG0.hw_timer[timer_idx].config.alarm_en = 0;
+	TIMERG0.hw_timer[timer_idx].config.tx_alarm_en = 0;
 }
 
 uint64_t getSleep()
