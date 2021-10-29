@@ -117,9 +117,9 @@ void fdkaac_decoder_task(void *pvParameters)
         }
 		
 //		watchgog reset 
-		TIMERG0.wdt_wprotect=TIMG_WDT_WKEY_VALUE;
-		TIMERG0.wdt_feed=1;
-		TIMERG0.wdt_wprotect=0;
+		TIMERG0.wdtwprotect.wdt_wkey = TIMG_WDT_WKEY_VALUE;
+		TIMERG0.wdtfeed.wdt_feed = 1;
+		TIMERG0.wdtwprotect.wdt_wkey = 0;
 
 
         if(player->decoder_command == CMD_STOP) {
