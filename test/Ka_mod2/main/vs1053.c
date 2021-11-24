@@ -84,7 +84,7 @@ int get_vsVersion() { return vsVersion; }
 bool vsHW_init()
 {
 
-	uint32_t freq = spi_get_actual_clock(APB_CLK_FREQ, 1400000, 128);
+	uint32_t freq = 200000;
 	ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
 	spi_device_interface_config_t devcfg = {
 		.clock_speed_hz = freq, //Clock out at x MHz
@@ -105,7 +105,7 @@ bool vsHW_init()
 	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
 
 	//high speed
-	freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
+	freq = 4000000;
 	ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
 	devcfg.clock_speed_hz = freq;
 	devcfg.spics_io_num = xdcs; //XDCS pin
@@ -297,11 +297,10 @@ uint16_t vsReadSci(uint8_t addressbyte)
 void vsResetChip()
 {
 	ControlReset(SET);
-	vTaskDelay(30);
+	vTaskDelay(500);
 	ControlReset(RESET);
 
 	vsDisableAnalog();
-
 }
 
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)

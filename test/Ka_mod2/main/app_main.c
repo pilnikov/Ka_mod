@@ -76,9 +76,6 @@ static bool bigRam = false;
 // timeout to save volume in flash
 static bool divide = false;
 
-static esp_log_level_t s_log_default_level = CONFIG_LOG_BOOTLOADER_LEVEL_ERROR;
-
-
 // disable 1MS timer interrupt
 IRAM_ATTR void noInterrupt1Ms() { timer_disable_intr(TIMERGROUP1MS, msTimer); }
 // enable 1MS timer interrupt
@@ -97,73 +94,40 @@ IRAM_ATTR void msCallback(void* pArg)
 	int timer_idx = (int)pArg;
 
 	//	queue_event_t evt;
-	TIMERG1.hw_timer[timer_idx].update = 1;
-	TIMERG1.int_clr_timers.t0 = 1; //isr ack
+	TIMERG1.hw_timer[timer_idx].update.val = 1;
+	TIMERG1.int_clr_timers.t0_int_clr = 1; //isr ack
 	if (divide)
 	{
 	;
 	}
 
 	divide = !divide;
-	TIMERG1.hw_timer[timer_idx].config.alarm_en = 1;
+	TIMERG1.hw_timer[timer_idx].config.tx_alarm_en = 1;
 }
 
 IRAM_ATTR void sleepCallback(void* pArg)
 {
 	int timer_idx = (int)pArg;
 	queue_event_t evt;
-	TIMERG0.int_clr_timers.t0 = 1; //isr ack
+	TIMERG0.int_clr_timers.t0_int_clr = 1; //isr ack
 	evt.type = TIMER_SLEEP;
 	evt.i1 = TIMERGROUP;
 	evt.i2 = timer_idx;
 	xQueueSendFromISR(event_queue, &evt, NULL);
-	TIMERG0.hw_timer[timer_idx].config.alarm_en = 0;
+	TIMERG0.hw_timer[timer_idx].config.tx_alarm_en = 0;
 }
 
 IRAM_ATTR void wakeCallback(void* pArg)
 {
 	int timer_idx = (int)pArg;
 	queue_event_t evt;
-	TIMERG0.int_clr_timers.t1 = 1;
+	TIMERG0.int_clr_timers.t1_int_clr = 1;
 	evt.i1 = TIMERGROUP;
 	evt.i2 = timer_idx;
 	evt.type = TIMER_WAKE;
 	xQueueSendFromISR(event_queue, &evt, NULL);
-	TIMERG0.hw_timer[timer_idx].config.alarm_en = 0;
+	TIMERG0.hw_timer[timer_idx].config.tx_alarm_en = 0;
 }
-
-static xSemaphoreHandle muxDevice;
-
-const esp_partition_t* DEVICE;
-const esp_partition_t* DEVICE1;
-const esp_partition_t* STATIONS;
-
-void partitions_init(void)
-{
-	DEVICE = esp_partition_find_first(64, 0, NULL);
-	if (DEVICE == NULL)
-		ESP_LOGE(TAG, "DEVICE Partition not found");
-	DEVICE1 = esp_partition_find_first(66, 0, NULL);
-	if (DEVICE1 == NULL)
-		ESP_LOGE(TAG, "DEVICE1 Partition not found");
-	STATIONS = esp_partition_find_first(65, 0, NULL);
-	if (STATIONS == NULL)
-		ESP_LOGE(TAG, "STATIONS Partition not found");
-	muxDevice = xSemaphoreCreateMutex();
-
-	g_device.current_ap = 1; // 0 = AP mode, else STA mode: 1 = ssid1, 2 = ssid2
-	g_device.treble = 50;
-	g_device.bass = 50;
-	g_device.freqtreble = 50;
-	g_device.freqbass = 50;
-	g_device.spacial = 0;
-	g_device.currentstation = 0;  // 
-	g_device.autostart = 1; // 0: stopped, 1: playing
-	strcpy(g_device.ssid1, "Home");
-	strcpy(g_device.pass1, "44332221111");
-}
-
-
 
 uint64_t getSleep()
 {
@@ -671,7 +635,9 @@ void app_main()
 
 	ESP_LOGE(TAG, "starting app_main()");
 	ESP_LOGE(TAG, "RAM left: %u", esp_get_free_heap_size());
-
+	
+	esp_log_level_set("*", ESP_LOG_VERBOSE);
+	
 	const esp_partition_t* running = esp_ota_get_running_partition();
 	ESP_LOGE(TAG, "Running partition type %d subtype %d (offset 0x%08x)",
 		running->type, running->subtype, running->address);
@@ -691,24 +657,6 @@ void app_main()
 	if (xPortGetFreeHeapSize() > 0x80000)
 		bigRam = true;
 
-	partitions_init(); // init partition table
-	ESP_LOGE(TAG, "Partition init done...");
-
-	// init softwares
-
-
-	void setLogLevel(esp_log_level_t level)
-	{
-		esp_log_level_set("*", level);
-		s_log_default_level = level;
-		g_device.trace_level = level;
-	}
-
-	// log level
-	//setLogLevel(g_device.trace_level);
-	setLogLevel(ESP_LOG_ERROR);
-
-	//time display
 
 	//SPI init for the vs1053 and lcd if spi.
 
@@ -750,6 +698,10 @@ void app_main()
 	// start the network
 	//-----------------------------
 	/* init wifi & network*/
+
+	strcpy(g_device.ssid1, "Mik2");
+	strcpy(g_device.pass1, "12345678");
+
 	start_wifi();
 	ESP_LOGE(TAG, "Wifi Started!!! True start Network");
 	start_network();
