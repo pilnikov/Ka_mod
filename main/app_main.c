@@ -312,20 +312,6 @@ uint32_t checkUart(uint32_t speed)
 	return 115200; // default
 }
 
-/******************************************************************************
- * FunctionName : init_hardware
- * Description  : Init all hardware, partitions etc
- * Parameters   : 
- * Returns      : 
-*******************************************************************************/
-static void init_vs_hw()
-{
-	if (vsHW_init()) // init spi
-		{
-			vsStart();
-			ESP_LOGI(TAG, "vsHW initialized");
-		}
-}
 
 /* event handler for pre-defined wifi events */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
@@ -994,7 +980,19 @@ void app_main()
 
 	if (audio_output_mode == 4)
 	{
-		init_vs_hw(); //init vs1053 if in mode sel
+	/******************************************************************************
+	 * FunctionName : init_vs_hardware
+	 * Description  : Init vs hardware
+	 * Parameters   : 
+	 * Returns      : 
+	*******************************************************************************/
+		int vsVer = vsHW_init();
+		
+		if (vsVer > 0) // vs init sucsess
+			{
+				vsStart();
+				ESP_LOGI(TAG, "vsHW initialized");
+			}
 	}
 
 	//Initialize the SPI RAM chip communications and see if it actually retains some bytes. If it

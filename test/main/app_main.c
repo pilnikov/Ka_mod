@@ -239,20 +239,6 @@ uint32_t checkUart(uint32_t speed)
 	return 115200; // default
 }
 
-/******************************************************************************
- * FunctionName : init_hardware
- * Description  : Init all hardware, partitions etc
- * Parameters   :
- * Returns      :
-*******************************************************************************/
-static void init_vs_hw()
-{
-	if (vsHW_init()) // init spi
-		vsStart();
-
-	ESP_LOGE(TAG, "VS HW initialized");
-}
-
 /* event handler for pre-defined wifi events */
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
 							   int32_t event_id, void *event_data)
@@ -659,10 +645,14 @@ void app_main()
 
 
 	//SPI init for the vs1053 and lcd if spi.
-
-
 	Spi_init();
-	init_vs_hw(); //init vs1053 if in mode sel
+
+	//VS10xx init.
+	int vSver = vsHW_init();
+	if ( vSver > 0) // init spi
+		vsStart(vSver);
+
+	ESP_LOGE(TAG, "VS HW initialized");
 
 	//Initialize the SPI RAM chip communications and see if it actually retains some bytes. If it
 	//doesn't, warn user.
@@ -699,8 +689,11 @@ void app_main()
 	//-----------------------------
 	/* init wifi & network*/
 
-	strcpy(g_device.ssid1, "Mik2");
-	strcpy(g_device.pass1, "12345678");
+	strcpy(g_device.ssid1, "Home");
+	strcpy(g_device.pass1, "44332221111");
+
+	strcpy(g_device.ssid2, "Mik2");
+	strcpy(g_device.pass2, "12345678");
 
 	start_wifi();
 	ESP_LOGE(TAG, "Wifi Started!!! True start Network");

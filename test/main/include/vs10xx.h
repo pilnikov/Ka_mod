@@ -30,6 +30,8 @@
 #define SET 0
 #define RESET 1
 
+#define _BV(b) (1UL << (b))
+
 // gpio are defined in gpio.h
 
 
@@ -80,10 +82,10 @@
 void Spi_init();
 
 int     get_vsVersion();
-bool 	vsHW_init();
+int 	vsHW_init();
 void 	vsI2SRATE(uint8_t speed);
 void    vsInfo();
-void	vsStart();
+void	vsStart(int vSVer);
 void	vsI2SRate(uint8_t speed);
 int 	vsSendMusicBytes(uint8_t* music,uint16_t quantity);
 void 	vsSoftwareReset();

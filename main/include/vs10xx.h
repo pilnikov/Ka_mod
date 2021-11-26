@@ -78,13 +78,15 @@
 #define SM_LINE1            0x4000
 #define para_endFillByte    0x1E06
 
+#define _BV(b) (1UL << (b))
+
 
 //public functions
 
 void Spi_init();
 
 int     get_vsVersion();
-bool 	vsHW_init();
+int 	vsHW_init();
 void 	vsI2SRATE(uint8_t speed);
 void    vsInfo();
 void	vsStart();

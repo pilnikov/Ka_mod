@@ -26,17 +26,17 @@
 #define PAR_BITRATE_PER_100    0x1e05 /* VS1063 */
 #define PAR_VU_METER           0x1e0c /* VS1063 */
 
-int vsVersion = -1; // the version of the chip
-//	SS_VER is 0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053, 5 for VS1033, 7 for VS1103, and 6 for VS1063.
-
 gpio_num_t rst  = 12;
 gpio_num_t dreq = 4;
 gpio_num_t miso = 19;
 gpio_num_t mosi = 23;
 gpio_num_t sclk = 18;
-gpio_num_t xdcs =  5;
+gpio_num_t xdcs =  2;
 gpio_num_t xcs  = 15;
 uint8_t spi_no =2 ; // the spi bus to use
+
+int vsVersion = -1; // the version of the chip
+//	SS_VER is 0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053, 5 for VS1033, 7 for VS1103, and 6 for VS1063.
 
 static spi_device_handle_t vsspi;  // the evice handle of the vs1053 spi
 static spi_device_handle_t hvsspi; // the device handle of the vs1053 spi high speed
@@ -75,14 +75,31 @@ void Spi_init()
 		.quadhd_io_num = -1,
 		.flags = SPICOMMON_BUSFLAG_MASTER
 	};
-	ret = spi_bus_initialize(spi_no, &buscfg, 1); // dma
+	ret = spi_bus_initialize(spi_no, &buscfg, 1); // SPI
 	assert(ret == ESP_OK);
 }
 
 int get_vsVersion() { return vsVersion; }
 
-bool vsHW_init()
+int vsHW_init()
 {
+ 	/*---- Initialize non-SPI GPIOs ----*/
+	gpio_config_t gpio_conf;
+	gpio_conf.mode = GPIO_MODE_OUTPUT;
+	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+	gpio_conf.intr_type = GPIO_INTR_DISABLE;
+	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
+	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+
+	ControlReset(RESET); //Set xrst pin level to HIGH
+
+	gpio_conf.mode = GPIO_MODE_INPUT;
+	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+	gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+	gpio_conf.intr_type = GPIO_INTR_DISABLE;
+	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
+	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
 	uint32_t freq = 200000;
 	ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
@@ -102,8 +119,30 @@ bool vsHW_init()
 		.post_cb = NULL };
 
 	//slow speed
-	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
+	esp_err_t ERRSpi = spi_bus_add_device(spi_no, &devcfg, &vsspi);
+	if (ERRSpi != ESP_OK) ESP_LOGE(TAG, "LoSPI init fail %d", ERRSpi);
+	else ESP_LOGI(TAG, "LoSPI init OK! %d", ERRSpi);
 
+	vTaskDelay(20);
+
+	int vsStatus = vsReadSci(SCI_STATUSVS);
+	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
+	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
+	//5 for VS1033, 7 for VS1103, and 6 for VS1063
+
+	// Most VS1053 modules will start up in midi mode.  The result is that there is no audio
+	// when playing MP3.  You can modify the board, but there is a more elegant way:
+	vsWriteSci(0xC017, 3);                             // GPIO DDR=3
+	vsWriteSci(0xC019, 0);                             // GPIO ODATA=0
+	vTaskDelay(100);
+	//printDetails ("After test loop");
+	vsSoftwareReset();                                       // Do a soft reset
+	// Switch on the analog parts
+	vsWriteSci(SCI_AUDATA, 44100 + 1);             // 44.1kHz + stereo
+	// The next clocksetting allows SPI clocking at 5 MHz, 4 MHz is safe then.
+	vsWriteSci(SCI_CLOCKF, 6 << 12);               // Normal clock settings multiplyer 3.0=12.2 MHz
+	
+	//SPI Clock to 4 MHz. Now you can set high speed SPI clock.
 	//high speed
 	freq = 4000000;
 	ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
@@ -111,27 +150,31 @@ bool vsHW_init()
 	devcfg.spics_io_num = xdcs; //XDCS pin
 	devcfg.command_bits = 0;
 	devcfg.address_bits = 0;
-	ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
+	
+	ERRSpi = spi_bus_add_device(spi_no, &devcfg, &hvsspi);
+	if (ERRSpi != ESP_OK) ESP_LOGE(TAG, "HiSPI init fail %d", ERRSpi);
+	else ESP_LOGI(TAG, "HiSPI init OK! %d", ERRSpi);
+	
+	vsWriteSci(SCI_MODE, _BV(SM_SDINEW) | _BV(SM_LINE1));
 
-	/*---- Initialize non-SPI GPIOs ----*/
-	gpio_config_t gpio_conf;
-	gpio_conf.mode = GPIO_MODE_OUTPUT;
-	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
-	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+	vTaskDelay(10);
 
-	ControlReset(RESET); //Set xrst pin level to HIGH
+	uint8_t tru_conn = 1;
+	while (vscheckDREQ() == 0 && tru_conn < 10)
+		{
+			taskYIELD();
+			tru_conn ++;
+		}
+	
+	vsregtest();
+	
+	uint16_t m_endFillByte = vsReadSci(0x1E06) & 0xFF;
 
-	gpio_conf.mode = GPIO_MODE_INPUT;
-	gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-	gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
-	gpio_conf.intr_type = GPIO_INTR_DISABLE;
-	gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
-	ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+ 	ESP_LOGI(TAG,  "endFillByte is %X", m_endFillByte);
+	//if (vs1053_info) vs1053_info(sbuf);
+	vTaskDelay(100);
 
-	return true;
+	return vsVersion;
 }
 
 void ControlReset(uint8_t State)
@@ -197,9 +240,6 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	spi_transaction_t t;
 	esp_err_t ret;
 
-	if (vsVersion == 0)
-		return;
-
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.flags |= SPI_TRANS_USE_TXDATA;
 	t.cmd = VS_WRITE_COMMAND;
@@ -207,8 +247,13 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	t.tx_data[0] = highbyte;
 	t.tx_data[1] = lowbyte;
 	t.length = 16;
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+	
+	uint16_t tru_conn = 1;
+	while (vscheckDREQ() == 0 && tru_conn < 10)
+		{
+			taskYIELD();
+			tru_conn ++;
+		}
 
 	spi_take_semaphore(vsSPI);
 	ret = spi_device_transmit(vsspi, &t); //Transmit!
@@ -216,17 +261,19 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci8(%d,%d,%d)", ret, addr, highbyte, lowbyte);
 	spi_give_semaphore(vsSPI);
 
-	while (vscheckDREQ() == 0)
-		taskYIELD();
+	tru_conn = 1;
+	
+	while (vscheckDREQ() == 0 && tru_conn < 10)
+		{
+			taskYIELD();
+			tru_conn ++;
+		}
 }
 
 void vsWriteSci(uint8_t addr, uint16_t value)
 {
 	spi_transaction_t t;
 	esp_err_t ret;
-
-	if (vsVersion == 0)
-		return;
 
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.flags |= SPI_TRANS_USE_TXDATA;
@@ -236,8 +283,7 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 	t.tx_data[1] = value & 0xff;
 	t.length = 16;
 	
-	uint16_t tru_conn = 0;
-	
+	uint16_t tru_conn = 1;
 	while (vscheckDREQ() == 0 && tru_conn < 10)
 		{
 			taskYIELD();
@@ -250,6 +296,7 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci(%d,%d)", ret, addr, value);
 	spi_give_semaphore(vsSPI);
 
+	tru_conn = 1;
 	while (vscheckDREQ() == 0 && tru_conn < 10)
 		{
 			taskYIELD();
@@ -262,16 +309,14 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	uint16_t result;
 	spi_transaction_t t;
 	esp_err_t ret;
-	uint16_t tru_conn = 0;
 
-	if (vsVersion == 0)
-		return 0;
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.length = 16;
 	t.flags |= SPI_TRANS_USE_RXDATA;
 	t.cmd = VS_READ_COMMAND;
 	t.addr = addressbyte;
 
+	uint16_t tru_conn = 1;
 	while (vscheckDREQ() == 0 && tru_conn < 10)
 		{
 			taskYIELD();
@@ -285,6 +330,7 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	result = (((t.rx_data[0] & 0xFF) << 8) | ((t.rx_data[1]) & 0xFF));
 	spi_give_semaphore(vsSPI);
 
+	tru_conn = 1;
 	while (vscheckDREQ() == 0 && tru_conn < 10)
 		{
 			taskYIELD();
@@ -297,7 +343,7 @@ uint16_t vsReadSci(uint8_t addressbyte)
 void vsResetChip()
 {
 	ControlReset(SET);
-	vTaskDelay(500);
+	vTaskDelay(30);
 	ControlReset(RESET);
 
 	vsDisableAnalog();
@@ -306,14 +352,6 @@ void vsResetChip()
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)
 {
 	return ((Source & Mask) >> Shift);
-}
-
-/*
-  Read 16-bit value from addr.
-*/
-uint16_t ReadVS10xxMem(uint16_t addr) {
-	vsWriteSci(SCI_WRAMADDR, addr);
-	return vsReadSci(SCI_WRAM);
 }
 
 enum AudioFormat {
@@ -385,7 +423,7 @@ void vsInfo()
 	}
 
 	sampleRate = vsReadSci(SCI_AUDATA);
-	hehtoBitsPerSec = ReadVS10xxMem(PAR_BITRATE_PER_100);
+	hehtoBitsPerSec = vsReadSci(PAR_BITRATE_PER_100);
 
 	ESP_LOGI(TAG, "\r%1ds %1.1f kb/s %dHz %s %s h = 0x%X",
 		vsReadSci(SCI_DECODE_TIME),
@@ -395,9 +433,6 @@ void vsInfo()
 	);
 
 } /* REPORT_ON_SCREEN */
-
-
-
 
 void vsregtest()
 {
@@ -423,6 +458,7 @@ void vsI2SRate(uint8_t speed)
 	vsWriteSci(SCI_WRAM, 0x000C | speed); //
 	ESP_LOGI(TAG, "I2S Speed: %d", speed);
 }
+
 void vsDisableAnalog()
 {
 	// disable analog output
@@ -445,20 +481,15 @@ void vsHighPower()
 }
 
 /*--- Start Vs ----*/
-void vsStart()
+void vsStart(int vSVer)
 {
 	vsResetChip();
 
-	int vsStatus = vsReadSci(SCI_STATUSVS);
-	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
-	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
-	//5 for VS1033, 7 for VS1103, and 6 for VS1063
-
-	if (vsVersion == 0)
+	if (vSVer == 0)
 		ESP_LOGE(TAG, "NO VS10xx detected");
 	else
 	{
-		ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
+		ESP_LOGI(TAG, "VS10xx detected, Version: %x", vSVer);
 
 		// these 4 lines makes board to run on mp3 mode, no soldering required anymore
 		vsWriteSci(SCI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
@@ -467,18 +498,20 @@ void vsStart()
 		vsWriteSci(SCI_WRAM, 0x0000);	 //GPIO_ODATA=0
 		vTaskDelay(150);
 
-		if (vsVersion == 4)						// only 1053b
+		if (vSVer == 4)						// only 1053b
 			vsWriteSci(SCI_CLOCKF, 0x8800);     // SC_MULT = x3.5, SC_ADD= x1
 		else
 			vsWriteSci(SCI_CLOCKF, 0xB000);
 
-		while (vscheckDREQ() == 0)
+		int16_t tru_conn = 1;
+		while (vscheckDREQ() == 0 && tru_conn < 10)
+		{
 			taskYIELD();
-
-		vsregtest();
+			tru_conn ++;
+		}
 
 		// enable I2C dac output of the vs1053
-		if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
+		if (vSVer == 4 || vSVer == 6) // only 1053 & 1063
 		{
 			vsWriteSci(SCI_WRAMADDR, 0xc017); 
 			vsWriteSci(SCI_WRAM, 0x00F0);	 
@@ -488,11 +521,11 @@ void vsStart()
 			if (true)
 			{
 				uint16_t len = 0;
-				if (vsVersion == 4) { // only 1053
+				if (vSVer == 4) { // only 1053
 					len = sizeof(patch1053) / sizeof(patch1053[0]);
 					vsLoadPlugin(patch1053, len);
 				}
-				if (vsVersion == 6) { // only 1063
+				if (vSVer == 6) { // only 1063
 					len = sizeof(patch1063) / sizeof(patch1063[0]);
 					vsLoadPlugin(patch1063, len);
 				}
@@ -773,7 +806,7 @@ void vsflush_cancel(uint8_t mode)
 			if (y++ > 200)
 			{
 				if (mode == 1)
-					vsStart();
+					vsStart(vsVersion);
 				break;
 			}
 		}

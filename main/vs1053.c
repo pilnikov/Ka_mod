@@ -87,10 +87,10 @@ void Spi_init()
 
 int get_vsVersion() { return vsVersion; }
 
-bool vsHW_init()
+int vsHW_init()
 {
 
-	bool ret = false;
+	int ret = -1;
 
 	gpio_num_t miso;
 	gpio_num_t mosi;
@@ -111,6 +111,7 @@ bool vsHW_init()
 	}
 	else
 	{
+	/*
 		uint32_t freq = spi_get_actual_clock(APB_CLK_FREQ, 1400000, 128);
 		ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
 		spi_device_interface_config_t devcfg = {
@@ -130,6 +131,13 @@ bool vsHW_init()
 
 		//slow speed
 		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
+		
+		int vsStatus = vsReadSci(SCI_STATUSVS);
+		vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
+		//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
+		//5 for VS1033, 7 for VS1103, and 6 for VS1063
+
+		vsregtest();
 
 		//high speed
 		freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
@@ -139,8 +147,29 @@ bool vsHW_init()
 		devcfg.command_bits = 0;
 		devcfg.address_bits = 0;
 		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
-
+*/
 		/*---- Initialize non-SPI GPIOs ----*/
+/*		gpio_config_t gpio_conf;
+		gpio_conf.mode = GPIO_MODE_OUTPUT;
+		gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+		gpio_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
+		gpio_conf.intr_type = GPIO_INTR_DISABLE;
+		gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << rst)); //XRST pin
+		ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+
+		ControlReset(RESET); //Set xrst pin level to HIGH
+
+		gpio_conf.mode = GPIO_MODE_INPUT;
+		gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
+		gpio_conf.pull_down_en = GPIO_PULLDOWN_ENABLE;
+		gpio_conf.intr_type = GPIO_INTR_DISABLE;
+		gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
+		ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+
+		ret = vsVersion;
+	}
+*/
+ 	/*---- Initialize non-SPI GPIOs ----*/
 		gpio_config_t gpio_conf;
 		gpio_conf.mode = GPIO_MODE_OUTPUT;
 		gpio_conf.pull_up_en = GPIO_PULLUP_DISABLE;
@@ -158,9 +187,45 @@ bool vsHW_init()
 		gpio_conf.pin_bit_mask = ((uint64_t)(((uint64_t)1) << dreq)); //DREQ pin
 		ESP_ERROR_CHECK(gpio_config(&gpio_conf));
 
-		ret = true;
+	//slow speed
+		uint32_t freq = 200000;
+		ESP_LOGI(TAG, "VS10xx LFreq: %d", freq);
+		spi_device_interface_config_t devcfg = {
+			.clock_speed_hz = freq, //Clock out at x MHz
+			.command_bits = 8,
+			.address_bits = 8,
+			.dummy_bits = 0,
+			.duty_cycle_pos = 0,
+			.cs_ena_pretrans = 0,
+			.cs_ena_posttrans = 1,
+			.flags = 0,
+			.mode = 0,			 //SPI mode
+			.spics_io_num = xcs, //XCS pin
+			.queue_size = 1,	 //We want to be able to queue x transactions at a time
+			.pre_cb = NULL, //Specify pre-transfer callback to handle D/C line
+			.post_cb = NULL };
+
+		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &vsspi));
+	
+		vTaskDelay(20);
+
+		int vsStatus = vsReadSci(SCI_STATUSVS);
+		vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
+
+		//high speed
+		freq = spi_get_actual_clock(APB_CLK_FREQ, 6100000, 128);
+		ESP_LOGI(TAG, "VS10xx HFreq: %d", freq);
+		devcfg.clock_speed_hz = freq;
+		devcfg.spics_io_num = xdcs; //XDCS pin
+		devcfg.command_bits = 0;
+		devcfg.address_bits = 0;
+		
+		ESP_ERROR_CHECK(spi_bus_add_device(spi_no, &devcfg, &hvsspi));
+
+		vsregtest();
+		ret = vsVersion;
 	}
-	return ret;		/* code */
+	return ret;		/* vs version */
 }
 
 void ControlReset(uint8_t State)
@@ -208,8 +273,8 @@ void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t* cbyte, uint16_t len)
 	t.tx_buffer = cbyte;
 	t.length = len * 8;
 
-    uint8_t suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    uint8_t suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -221,8 +286,8 @@ void vsWriteScichar(spi_device_handle_t ivsspi, uint8_t* cbyte, uint16_t len)
 		ESP_LOGE(TAG, "err: %d, vsspi_write_char(len: %d)", ret, len);
 	spi_give_semaphore(hsSPI);
 
-    suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -234,9 +299,6 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	spi_transaction_t t;
 	esp_err_t ret;
 
-	if (vsVersion == 0)
-		return;
-
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.flags |= SPI_TRANS_USE_TXDATA;
 	t.cmd = VS_WRITE_COMMAND;
@@ -245,8 +307,8 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 	t.tx_data[1] = lowbyte;
 	t.length = 16;
     
-	uint8_t suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+	uint8_t suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -258,8 +320,8 @@ void vsWriteSci8(uint8_t addr, uint8_t highbyte, uint8_t lowbyte)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci8(%d,%d,%d)", ret, addr, highbyte, lowbyte);
 	spi_give_semaphore(vsSPI);
 
-    suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 	{
         taskYIELD();
         suc++;
@@ -271,9 +333,6 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 	spi_transaction_t t;
 	esp_err_t ret;
 
-	if (vsVersion == 0)
-		return;
-
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.flags |= SPI_TRANS_USE_TXDATA;
 	t.cmd = VS_WRITE_COMMAND;
@@ -282,8 +341,8 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 	t.tx_data[1] = value & 0xff;
 	t.length = 16;
 
-    uint8_t suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    uint8_t suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -295,8 +354,8 @@ void vsWriteSci(uint8_t addr, uint16_t value)
 		ESP_LOGE(TAG, "err: %d, vsWriteSci(%d,%d)", ret, addr, value);
 	spi_give_semaphore(vsSPI);
 
-	suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+	suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
 			taskYIELD();
 			suc++;
@@ -309,16 +368,14 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	spi_transaction_t t;
 	esp_err_t ret;
 
-	if (vsVersion == 0)
-		return 0;
 	memset(&t, 0, sizeof(t)); //Zero out the transaction
 	t.length = 16;
 	t.flags |= SPI_TRANS_USE_RXDATA;
 	t.cmd = VS_READ_COMMAND;
 	t.addr = addressbyte;
 
-    uint8_t suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    uint8_t suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -331,8 +388,8 @@ uint16_t vsReadSci(uint8_t addressbyte)
 	result = (((t.rx_data[0] & 0xFF) << 8) | ((t.rx_data[1]) & 0xFF));
 	spi_give_semaphore(vsSPI);
 
-    suc = 0;
-	while (vscheckDREQ() == 0 && suc < 20)
+    suc = 1;
+	while (vscheckDREQ() == 0 && suc < 10)
 		{
             taskYIELD();
             suc++;
@@ -348,7 +405,6 @@ void vsResetChip()
 	ControlReset(RESET);
 
 	vsDisableAnalog();
-
 }
 
 uint16_t MaskAndShiftRight(uint16_t Source, uint16_t Mask, uint16_t Shift)
@@ -444,9 +500,6 @@ void vsInfo()
 
 } /* REPORT_ON_SCREEN */
 
-
-
-
 void vsregtest()
 {
 	int vsStatus = vsReadSci(SCI_STATUSVS);
@@ -497,16 +550,11 @@ void vsStart()
 {
 	vsResetChip();
 
-	int vsStatus = vsReadSci(SCI_STATUSVS);
-	vsVersion = (vsStatus >> 4) & 0x000F; //Mask out only the four version bits
-	//0 for VS1001, 1 for VS1011, 2 for VS1002, 3 for VS1003, 4 for VS1053 and VS8053,
-	//5 for VS1033, 7 for VS1103, and 6 for VS1063
-
 	if (vsVersion == 0)
 		ESP_LOGE(TAG, "NO VS10xx detected");
 	else
 	{
-		ESP_LOGI(TAG, "VS10xx detected. vsStatus: %x, Version: %x", vsStatus, vsVersion);
+		ESP_LOGI(TAG, "VS10xx detected. Version: %d", vsVersion);
 
 		// these 4 lines makes board to run on mp3 mode, no soldering required anymore
 		vsWriteSci(SCI_WRAMADDR, 0xc017); //address of GPIO_DDR is 0xC017
@@ -522,8 +570,6 @@ void vsStart()
 
 		while (vscheckDREQ() == 0)
 			taskYIELD();
-
-		vsregtest();
 
 		// enable I2C dac output of the vs1053
 		if (vsVersion == 4 || vsVersion == 6) // only 1053 & 1063
@@ -838,7 +884,7 @@ void vsflush_cancel(uint8_t mode)
 //IRAM_ATTR
 void vsTask(void* pvParams)
 {
-#define VSTASKBUF 1024
+	#define VSTASKBUF 1024
 	portBASE_TYPE uxHighWaterMark;
 	uint8_t b[VSTASKBUF];
 	uint16_t size, s;
@@ -863,7 +909,6 @@ void vsTask(void* pvParams)
 			ESP_LOGE(TAG, "Music buffer is emty - Nothing playing :(");
 			vTaskDelay(10);
 		}
-
 		vTaskDelay(5);
 	}
 

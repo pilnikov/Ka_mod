@@ -1074,7 +1074,8 @@ void playStationInt(int st_n)
 	ESP_LOGE(TAG, "Start PSI");
 
 	//struct shoutcast_info _si = {"stream.radioparadise.com", "/flac", "Sector", 80};
-	struct shoutcast_info _si = {"live.m2stream.fr", "/m2rock-128.mp3", "M2 Rock", 80};
+	//struct shoutcast_info _si = {"live.m2stream.fr", "/m2rock-128.mp3", "M2 Rock", 80};
+	struct shoutcast_info _si = {"mp3.polskieradio.pl", "/", "Pink Floyd", 8070};
 	struct shoutcast_info *si = &_si;
 
 	ESP_LOGE(TAG,"playstationInt: %d, Name: %s, url: %s, path: %s, port: %d\n", st_n, si->name, si->domain, si->file, si->port);
