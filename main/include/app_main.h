@@ -115,7 +115,7 @@
 
 // Tasks priority
 #define PRIO_MAD 		7
-#define PRIO_VS10xx 	6
+#define PRIO_VS1053 	6
 #define PRIO_RMT		5
 #define PRIO_UART		2
 #define PRIO_CLIENT		8

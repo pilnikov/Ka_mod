@@ -144,7 +144,7 @@ void spiRamFifoWrite(const char* buff, unsigned buffLen) {
 				fifoOvfCnt++;
 				xSemaphoreGive(mux);
 				//			xSemaphoreTake(semCanWrite, portMAX_DELAY);
-				vTaskDelay(10);
+				vTaskDelay(5);
 			}
 			else {
 				// Write the data.

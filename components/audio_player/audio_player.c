@@ -42,8 +42,8 @@ static int start_decoder_task(player_t* player)
 	{
 		task_func = vsTask;
 		task_name = (char*)"vsTask";
-		stack_depth = 3000;
-		priority = PRIO_VS10xx;
+		stack_depth = 10000;
+		priority = PRIO_VS1053;
 	}
 	else
 		switch (player->media_stream->content_type)

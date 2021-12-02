@@ -1158,7 +1158,7 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				{
 					//					if (spiRamFifoFree() < metad) ESP_LOGV(TAG,"metaout wait metad: %d, bufferfree: %d",metad,spiRamFifoFree());
 					while (spiRamFifoFree() < metad) // wait some room
-						vTaskDelay(20);
+						vTaskDelay(5);
 					audio_stream_consumer((char*)inpdata, metad, (void*)player_config); //write stream data in bufer 
 				}
 				metad = header.members.single.metaint;
@@ -1179,7 +1179,7 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 				if (rest > 0)
 				{
 					while (spiRamFifoFree() < rest) // wait some room
-						vTaskDelay(20);				//
+						vTaskDelay(5);				//
 					audio_stream_consumer((char*)inpdata, rest, (void*)player_config); //write stream data in bufer 
 				}
 				rest = 0;
@@ -1193,7 +1193,7 @@ void clientReceiveCallback(int sockfd, char* pdata, int len)
 			if (len > 0)
 			{
 				while (spiRamFifoFree() < len) // wait some room
-					vTaskDelay(20);
+					vTaskDelay(5);
 				audio_stream_consumer((char*)(pdata + rest), len, (void*)player_config); //write stream data in bufer 
 			}
 		}

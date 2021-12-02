@@ -534,12 +534,12 @@ void vsStart(int vSVer)
 		}
 		vTaskDelay(5);
 		ESP_LOGI(TAG, "volume: %d", g_device.vol);
-		vsSetVolume(g_device.vol);
-		vsSetTreble(g_device.treble);
-		vsSetBass(g_device.bass);
-		vsSetTrebleFreq(g_device.freqtreble);
-		vsSetBassFreq(g_device.freqbass);
-		vsSetSpatial(g_device.spacial);
+		vsSetVolume(100);
+		vsSetTreble(100);
+		vsSetBass(100);
+		vsSetTrebleFreq(0);
+		vsSetBassFreq(100);
+		vsSetSpatial(10);
 	}
 }
 
@@ -822,7 +822,7 @@ void vsflush_cancel(uint8_t mode)
 //IRAM_ATTR
 void vsTask(void* pvParams)
 {
-#define VSTASKBUF 1024
+#define VSTASKBUF 8096
 	portBASE_TYPE uxHighWaterMark;
 	uint8_t b[VSTASKBUF];
 	uint16_t size, s;
@@ -837,7 +837,7 @@ void vsTask(void* pvParams)
 			s = 0;
 			while (s < size)
 			{
-				//s += vsSendMusicBytes(b + s, size - s);
+				s += vsSendMusicBytes(b + s, size - s);
 				s++;
 			}
 		}
@@ -847,7 +847,7 @@ void vsTask(void* pvParams)
 			vTaskDelay(10);
 		}
 
-		vTaskDelay(5);
+		vTaskDelay(20);
 	}
 
 	spiRamFifoReset();

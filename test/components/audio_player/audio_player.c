@@ -81,7 +81,7 @@ void audio_player_start()
 	ESP_LOGI(TAG, "RAM left %d", esp_get_free_heap_size());
 	TaskFunction_t task_func = vsTask;
 	char* task_name = (char*)"vsTask";
-	uint16_t stack_depth = 3000;
+	uint16_t stack_depth = 10000;
 	int priority = PRIO_VS1053;
 	xTaskCreatePinnedToCore(task_func, task_name, stack_depth, NULL, priority, NULL, 1); ///////////////////////////
 	spiRamFifoReset();

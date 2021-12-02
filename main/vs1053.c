@@ -884,7 +884,7 @@ void vsflush_cancel(uint8_t mode)
 //IRAM_ATTR
 void vsTask(void* pvParams)
 {
-	#define VSTASKBUF 1024
+	#define VSTASKBUF 8096
 	portBASE_TYPE uxHighWaterMark;
 	uint8_t b[VSTASKBUF];
 	uint16_t size, s;
@@ -909,7 +909,7 @@ void vsTask(void* pvParams)
 			ESP_LOGE(TAG, "Music buffer is emty - Nothing playing :(");
 			vTaskDelay(10);
 		}
-		vTaskDelay(5);
+		vTaskDelay(20);
 	}
 
 	spiRamFifoReset();
